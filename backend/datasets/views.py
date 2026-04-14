@@ -13,13 +13,33 @@ from .serializers import DatasetSerializer, DatasetUploadSerializer
 DEMO_DATASETS = {
     'titanic': {
         'name': 'Titanic',
-        'description': 'Данные о пассажирах Титаника',
+        'description': 'Данные о пассажирах Титаника (выживаемость, классы, возраст)',
         'filename': 'titanic.csv',
     },
-    'house_prices': {
-        'name': 'House Prices',
-        'description': 'Цены на жилье — набор для регрессии',
-        'filename': 'house_prices.csv',
+    'california_housing': {
+        'name': 'California Housing',
+        'description': 'Данные переписи Калифорнии (цены на жилье)',
+        'filename': 'california_housing.csv',
+    },
+    'iris': {
+        'name': 'Iris',
+        'description': 'Классический датасет с параметрами цветков ириса',
+        'filename': 'iris.csv',
+    },
+    'diamonds': {
+        'name': 'Diamonds',
+        'description': 'Цены и характеристики почти 54 000 бриллиантов',
+        'filename': 'diamonds.csv',
+    },
+    'penguins': {
+        'name': 'Palmer Penguins',
+        'description': 'Данные о трех видах пингвинов (размеры крыльев, масса)',
+        'filename': 'penguins.csv',
+    },
+    'tips': {
+        'name': 'Restaurant Tips',
+        'description': 'Данные о чаевых в ресторане',
+        'filename': 'tips.csv',
     },
 }
 

@@ -2,10 +2,12 @@
 import { ref, onMounted } from 'vue'
 
 /* ---- Animated stats counter ---- */
+// TODO: В будущем получать актуальную статистику с бэкенда (например, /api/stats/)
+// Пока используются хардкод значения для презентации
 const stats = ref([
-  { label: 'Датасетов обработано', value: 0, target: 12400, suffix: '+' },
-  { label: 'Графиков построено', value: 0, target: 84000, suffix: '+' },
-  { label: 'Пользователей', value: 0, target: 3200, suffix: '+' },
+  { label: 'Датасетов в системе', value: 0, target: 450, suffix: '+' },
+  { label: 'Графиков построено', value: 0, target: 6048, suffix: '+' },
+  { label: 'Пользователей', value: 0, target: 234, suffix: '+' },
 ])
 
 function animateCounters() {
@@ -88,7 +90,7 @@ onMounted(() => {
             </svg>
             Попробовать демо-данные
           </router-link>
-          <router-link to="/upload" class="btn btn--hero-primary" id="btn-start">
+          <router-link to="/dashboard" class="btn btn--hero-primary" id="btn-start">
             Начать работу
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <line x1="5" y1="12" x2="19" y2="12"/>

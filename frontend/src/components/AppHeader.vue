@@ -1,12 +1,29 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 
+const router = useRouter()
 const isDark = ref(false)
+const userEmail = ref(null)
 
 function toggleTheme() {
   isDark.value = !isDark.value
   document.documentElement.setAttribute('data-theme', isDark.value ? 'dark' : 'light')
   localStorage.setItem('eda-theme', isDark.value ? 'dark' : 'light')
+}
+
+// Простая проверка авторизации (localStorage) 
+// В реальном проекте должен быть Pinia или Vuex
+function checkAuth() {
+  userEmail.value = localStorage.getItem('eda-user')
+}
+
+// При выходе
+function handleLogout() {
+  localStorage.removeItem('eda-token')
+  localStorage.removeItem('eda-user')
+  userEmail.value = null
+  router.push('/')
 }
 
 onMounted(() => {
@@ -15,6 +32,15 @@ onMounted(() => {
     isDark.value = true
     document.documentElement.setAttribute('data-theme', 'dark')
   }
+  
+  checkAuth()
+  
+  // Добавляем листенер для возможности обновления (если делать через window.dispatchEvent)
+  window.addEventListener('storage', checkAuth)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('storage', checkAuth)
 })
 </script>
 
@@ -49,18 +75,27 @@ onMounted(() => {
           </svg>
         </button>
 
-        <router-link to="/upload" class="btn btn--outline btn--sm" id="btn-upload-header">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="17 8 12 3 7 8"/>
-            <line x1="12" y1="3" x2="12" y2="15"/>
-          </svg>
-          Загрузить свой датасет
-        </router-link>
+        <template v-if="userEmail">
+          <span class="app-header__user-email">{{ userEmail }}</span>
+          <button @click="handleLogout" class="btn btn--outline btn--sm" id="btn-logout-header">
+            Выйти
+          </button>
+        </template>
 
-        <router-link to="/login" class="btn btn--primary btn--sm" id="btn-login-header">
-          Войти
-        </router-link>
+        <template v-else>
+          <router-link to="/dashboard" class="btn btn--outline btn--sm" id="btn-upload-header">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            Загрузить свой датасет
+          </router-link>
+
+          <router-link to="/login" class="btn btn--primary btn--sm" id="btn-login-header">
+            Войти
+          </router-link>
+        </template>
       </nav>
     </div>
   </header>
@@ -118,7 +153,13 @@ onMounted(() => {
 .app-header__nav {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-4);
+}
+
+.app-header__user-email {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-text-primary);
 }
 
 /* Theme Toggle */
