@@ -11,17 +11,23 @@ const buttonText = computed(() => isRegister.value ? 'Зарегистриров
 
 const email = ref('')
 const password = ref('')
+const passwordConfirm = ref('')
+const errorMsg = ref('')
 
 function handleSubmit() {
+  errorMsg.value = ''
+
+  if (isRegister.value && password.value !== passwordConfirm.value) {
+    errorMsg.value = 'Пароли не совпадают'
+    return
+  }
+
   // TODO: Вызов API бэкенда для логина/регистрации
   console.log('Form submitted:', { email: email.value, password: password.value, mode: title.value })
   
-  // Мокаем успешный вход: сохраняем токен в localStorage
+  // Мокаем успешный вход
   localStorage.setItem('eda-token', 'dummy-token')
   localStorage.setItem('eda-user', email.value || 'user@example.com')
-  
-  // Принудительно перезагружаем страницу, чтобы AppHeader обновил состояние,
-  // либо используем Pinia-стор (в будущем). Пока простой редирект:
   window.location.href = '/dashboard'
 }
 </script>
@@ -53,6 +59,19 @@ function handleSubmit() {
             placeholder="••••••••"
           />
         </div>
+
+        <div v-if="isRegister" class="auth-form__group">
+          <label class="auth-form__label">Подтверждение пароля</label>
+          <input 
+            type="password" 
+            v-model="passwordConfirm" 
+            class="auth-form__input" 
+            required
+            placeholder="••••••••"
+          />
+        </div>
+
+        <p v-if="errorMsg" class="auth-form__error">{{ errorMsg }}</p>
 
         <button type="submit" class="btn btn--primary btn--submit">
           {{ buttonText }}
@@ -152,5 +171,12 @@ function handleSubmit() {
 
 .auth-page__link:hover {
   color: var(--color-accent);
+}
+
+.auth-form__error {
+  font-size: var(--font-size-sm);
+  color: var(--color-error);
+  text-align: center;
+  padding: var(--space-2) 0;
 }
 </style>

@@ -5,7 +5,10 @@ const props = defineProps({
   columns: { type: Array, default: () => [] },
   rows: { type: Array, default: () => [] },
   columnTypes: { type: Object, default: () => ({}) },
+  targetVariable: { type: String, default: null },
 })
+
+const emit = defineEmits(['delete-column'])
 
 const ROW_HEIGHT = 34
 const BUFFER_ROWS = 10
@@ -15,7 +18,6 @@ const scrollTop = ref(0)
 const containerHeight = ref(600)
 
 const totalRows = computed(() => props.rows.length)
-const totalHeight = computed(() => totalRows.value * ROW_HEIGHT)
 
 const visibleStart = computed(() => {
   const start = Math.floor(scrollTop.value / ROW_HEIGHT) - BUFFER_ROWS
@@ -31,9 +33,7 @@ const visibleRows = computed(() => {
   return props.rows.slice(visibleStart.value, visibleEnd.value)
 })
 
-const offsetY = computed(() => visibleStart.value * ROW_HEIGHT)
-
-// Row counter — actual rows currently visible on screen (without buffer)
+// Row counter — rows visible on screen (without buffer)
 const visibleOnScreen = computed(() => {
   const onScreenStart = Math.floor(scrollTop.value / ROW_HEIGHT)
   const onScreenEnd = Math.min(
@@ -52,21 +52,16 @@ function pandasType(col) {
   return 'object'
 }
 
-// Null count for column
-function nullCount(col) {
-  let count = 0
-  for (const row of props.rows) {
-    const v = row[col]
-    if (v === null || v === undefined || v === '') count++
-  }
-  return count
-}
-
-// Cache null counts
+// Null count for column (cached)
 const nullCounts = computed(() => {
   const result = {}
   for (const col of props.columns) {
-    result[col] = nullCount(col)
+    let count = 0
+    for (const row of props.rows) {
+      const v = row[col]
+      if (v === null || v === undefined || v === '') count++
+    }
+    result[col] = count
   }
   return result
 })
@@ -82,10 +77,22 @@ function updateContainerHeight() {
 }
 
 function cellClass(col, value) {
-  if (value === null || value === undefined || value === '') return 'cell cell--null'
-  const type = props.columnTypes[col]
-  if (type === 'number') return 'cell cell--number'
-  return 'cell'
+  const classes = ['cell']
+  if (value === null || value === undefined || value === '') {
+    classes.push('cell--null')
+  } else if (props.columnTypes[col] === 'number') {
+    classes.push('cell--number')
+  }
+  if (col === props.targetVariable) {
+    classes.push('cell--target')
+  }
+  return classes.join(' ')
+}
+
+function thClass(col) {
+  const classes = ['vtable__th']
+  if (col === props.targetVariable) classes.push('vtable__th--target')
+  return classes.join(' ')
 }
 
 function formatValue(v) {
@@ -105,42 +112,56 @@ onUnmounted(() => {
 
 <template>
   <div class="vtable-wrapper">
-    <!-- Single scroll container for both header and body -->
     <div class="vtable-scroll" ref="scrollContainerRef" @scroll="onScroll">
-      <div class="vtable-spacer" :style="{ minHeight: totalHeight + 'px' }">
-        <table class="vtable">
-          <thead>
-            <tr>
-              <th class="vtable__index-col">#</th>
-              <th v-for="col in columns" :key="col" class="vtable__th">
-                <span class="vtable__col-name">{{ col }}</span>
-                <div class="vtable__col-meta">
-                  <span class="vtable__col-type">{{ pandasType(col) }}</span>
-                  <span
-                    v-if="nullCounts[col] > 0"
-                    class="vtable__col-nulls"
-                  >{{ nullCounts[col] }} null</span>
+      <!-- Top spacer pushes content down without transform -->
+      <div :style="{ height: visibleStart * ROW_HEIGHT + 'px' }"></div>
+      
+      <table class="vtable">
+        <thead>
+          <tr>
+            <th class="vtable__index-col">#</th>
+            <th v-for="col in columns" :key="col" :class="thClass(col)">
+              <div class="vtable__th-content">
+                <div class="vtable__th-left">
+                  <span class="vtable__col-name">{{ col }}</span>
+                  <div class="vtable__col-meta">
+                    <span class="vtable__col-type">{{ pandasType(col) }}</span>
+                    <span
+                      v-if="nullCounts[col] > 0"
+                      class="vtable__col-nulls"
+                    >{{ nullCounts[col] }} null</span>
+                    <span v-if="col === targetVariable" class="vtable__col-target">target</span>
+                  </div>
                 </div>
-              </th>
-            </tr>
-          </thead>
-          <tbody :style="{ transform: `translateY(${offsetY}px)` }">
-            <tr v-for="(row, i) in visibleRows" :key="visibleStart + i">
-              <td class="vtable__index-col vtable__index">{{ visibleStart + i + 1 }}</td>
-              <td
-                v-for="col in columns"
-                :key="col"
-                :class="cellClass(col, row[col])"
-              >
-                {{ formatValue(row[col]) }}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+                <button
+                  class="vtable__col-delete"
+                  @click.stop="emit('delete-column', col)"
+                  title="Удалить столбец"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </div>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(row, i) in visibleRows" :key="visibleStart + i">
+            <td class="vtable__index-col vtable__index">{{ visibleStart + i + 1 }}</td>
+            <td
+              v-for="col in columns"
+              :key="col"
+              :class="cellClass(col, row[col])"
+            >
+              {{ formatValue(row[col]) }}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Bottom spacer fills remaining height -->
+      <div :style="{ height: Math.max(0, (totalRows - visibleEnd) * ROW_HEIGHT) + 'px' }"></div>
     </div>
 
-    <!-- Footer -->
     <div class="vtable-footer">
       Строки {{ visibleOnScreen.from }}–{{ visibleOnScreen.to }} из {{ totalRows.toLocaleString() }}
     </div>
@@ -165,10 +186,6 @@ onUnmounted(() => {
   min-height: 0;
 }
 
-.vtable-spacer {
-  position: relative;
-}
-
 .vtable {
   width: 100%;
   border-collapse: collapse;
@@ -183,7 +200,7 @@ onUnmounted(() => {
 }
 
 .vtable__th {
-  padding: 8px 14px;
+  padding: 0;
   font-size: var(--font-size-xs);
   font-weight: 600;
   text-align: left;
@@ -193,15 +210,32 @@ onUnmounted(() => {
   border-bottom: 2px solid var(--color-border);
 }
 
+.vtable__th--target {
+  background: rgba(79, 110, 247, 0.08);
+  border-bottom-color: var(--color-accent);
+}
+
+.vtable__th-content {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 8px 12px;
+}
+
+.vtable__th-left {
+  display: flex;
+  flex-direction: column;
+}
+
 .vtable__col-name {
-  display: block;
   line-height: 1.3;
 }
 
 .vtable__col-meta {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   margin-top: 2px;
 }
 
@@ -209,8 +243,6 @@ onUnmounted(() => {
   font-size: 10px;
   font-weight: 500;
   color: var(--color-accent);
-  text-transform: none;
-  letter-spacing: 0;
 }
 
 .vtable__col-nulls {
@@ -220,6 +252,37 @@ onUnmounted(() => {
   background: rgba(245, 158, 11, 0.1);
   padding: 0 4px;
   border-radius: 3px;
+}
+
+.vtable__col-target {
+  font-size: 9px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--color-accent);
+  padding: 0 5px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.vtable__col-delete {
+  opacity: 0;
+  padding: 2px;
+  border-radius: 3px;
+  color: var(--color-text-tertiary);
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.vtable__th:hover .vtable__col-delete {
+  opacity: 0.6;
+}
+
+.vtable__col-delete:hover {
+  opacity: 1 !important;
+  color: var(--color-error);
+  background: rgba(239, 68, 68, 0.1);
 }
 
 .vtable__index-col {
@@ -234,12 +297,16 @@ onUnmounted(() => {
   background: var(--color-bg-tertiary);
 }
 
+thead .vtable__index-col {
+  background: var(--color-bg-tertiary);
+}
+
 .vtable__index {
   background: var(--color-bg-secondary);
 }
 
 .cell {
-  padding: 6px 14px;
+  padding: 6px 12px;
   font-size: var(--font-size-sm);
   color: var(--color-text-primary);
   border-bottom: 1px solid var(--color-border-light);
@@ -259,6 +326,10 @@ onUnmounted(() => {
 .cell--number {
   font-variant-numeric: tabular-nums;
   text-align: right;
+}
+
+.cell--target {
+  background: rgba(79, 110, 247, 0.04);
 }
 
 .vtable-footer {

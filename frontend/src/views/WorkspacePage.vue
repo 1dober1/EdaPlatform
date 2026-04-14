@@ -17,13 +17,12 @@ const errorMsg = ref(null)
 const describeData = computed(() => store.getDescribe())
 
 onMounted(async () => {
-  const source = route.params.source // 'demo' | 'upload'
+  const source = route.params.source
   const id = route.params.id
 
   if (source === 'demo') {
     await loadDemo(id)
   } else if (source === 'upload') {
-    // Данные уже должны быть загружены в store из DashboardPage
     if (store.rows.length === 0) {
       errorMsg.value = 'Нет данных для отображения. Пожалуйста, загрузите файл.'
     }
@@ -35,12 +34,10 @@ async function loadDemo(slug) {
   try {
     isLoading.value = true
     errorMsg.value = null
-    // Загружаем CSV/JSON напрямую из backend static
     const res = await fetch(`http://localhost:8000/api/datasets/demo/${slug}/`)
     if (!res.ok) throw new Error('Не удалось загрузить демо-датасет')
     const json = await res.json()
 
-    // json.data — массив объектов, json.name — имя
     const columns = json.data.length > 0 ? Object.keys(json.data[0]) : []
     store.setData(json.name, columns, json.data, {
       totalRows: json.data.length,
@@ -52,6 +49,35 @@ async function loadDemo(slug) {
   } finally {
     isLoading.value = false
   }
+}
+
+// ─── Event handlers for sidebar ────────────────────────────────
+
+function handleDeleteColumn(col) {
+  if (confirm(`Удалить столбец «${col}»?`)) {
+    store.deleteColumn(col)
+  }
+}
+
+function handleFillNulls(col, strategy) {
+  store.fillNulls(col, strategy)
+}
+
+function handleRemoveDuplicates() {
+  const removed = store.removeDuplicates()
+  alert(`Удалено дубликатов: ${removed}`)
+}
+
+function handleChangeType(col, newType) {
+  store.changeColumnType(col, newType)
+}
+
+function handleNormalizeColumn(col, method) {
+  store.normalizeColumn(col, method)
+}
+
+function handleSetTarget(col) {
+  store.targetVariable = col
 }
 
 function handleExport() {
@@ -68,19 +94,16 @@ function handleExport() {
 
 <template>
   <div class="workspace">
-    <!-- Loading state -->
     <div v-if="isLoading" class="workspace__loading">
       <div class="spinner"></div>
       <p>Загрузка датасета…</p>
     </div>
 
-    <!-- Error state -->
     <div v-else-if="errorMsg" class="workspace__error">
       <p>{{ errorMsg }}</p>
       <router-link to="/" class="btn btn--primary btn--sm">На главную</router-link>
     </div>
 
-    <!-- Main workspace -->
     <template v-else>
       <DataToolbar
         v-model="store.datasetName"
@@ -96,6 +119,8 @@ function handleExport() {
             :columns="store.columns"
             :rows="store.rows"
             :columnTypes="store.columnTypes"
+            :targetVariable="store.targetVariable"
+            @delete-column="handleDeleteColumn"
           />
         </div>
 
@@ -104,7 +129,13 @@ function handleExport() {
           :columns="store.columns"
           :rows="store.rows"
           :columnTypes="store.columnTypes"
+          :targetVariable="store.targetVariable"
           @export="handleExport"
+          @fill-nulls="handleFillNulls"
+          @remove-duplicates="handleRemoveDuplicates"
+          @change-type="handleChangeType"
+          @normalize-column="handleNormalizeColumn"
+          @set-target="handleSetTarget"
         />
       </div>
     </template>
@@ -133,7 +164,6 @@ function handleExport() {
   padding: var(--space-3);
 }
 
-/* Loading */
 .workspace__loading {
   display: flex;
   flex-direction: column;
@@ -157,7 +187,6 @@ function handleExport() {
   to { transform: rotate(360deg); }
 }
 
-/* Error */
 .workspace__error {
   display: flex;
   flex-direction: column;
