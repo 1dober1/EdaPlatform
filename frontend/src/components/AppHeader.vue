@@ -46,7 +46,7 @@ onUnmounted(() => {
 
 <template>
   <header class="app-header">
-    <div class="app-header__inner container">
+    <div class="app-header__inner">
       <router-link to="/" class="app-header__logo">
         <svg class="app-header__logo-icon" width="28" height="28" viewBox="0 0 28 28" fill="none">
           <rect width="28" height="28" rx="7" fill="url(#logo-grad)" />
@@ -128,6 +128,8 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding: 0 var(--space-6);
+  max-width: 100%;
 }
 
 /* Logo */

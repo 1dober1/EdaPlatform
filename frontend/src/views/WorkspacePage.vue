@@ -103,6 +103,7 @@ function handleExport() {
           :describeData="describeData"
           :columns="store.columns"
           :rows="store.rows"
+          :columnTypes="store.columnTypes"
           @export="handleExport"
         />
       </div>
