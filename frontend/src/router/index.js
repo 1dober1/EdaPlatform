@@ -33,6 +33,11 @@ const router = createRouter({
       name: 'dashboard',
       component: () => import('../views/DashboardPage.vue'),
     },
+    {
+      path: '/workspace/:source/:id',
+      name: 'workspace',
+      component: () => import('../views/WorkspacePage.vue'),
+    },
   ],
 })
 

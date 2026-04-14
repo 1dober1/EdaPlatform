@@ -1,21 +1,27 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
 
-const demoDatasets = ref([
-  { id: 'trees', name: 'Trees.csv' },
-  { id: 'wine', name: 'Wine.json' },
-  { id: 'house_prices', name: 'House prices.csv' },
-  { id: 'users', name: 'Users.csv' },
-  { id: 'titanic', name: 'Titanic.csv' },
-  { id: 'iris', name: 'Iris.csv' },
-])
+const demoDatasets = ref([])
+const isLoading = ref(true)
 
-function openDataset(id) {
-  // На будущее: переход к анализу конкретного демо-датасета
-  console.log('Открыть демо датасет:', id)
+onMounted(async () => {
+  try {
+    const res = await fetch('http://localhost:8000/api/datasets/demo/')
+    if (res.ok) {
+      demoDatasets.value = await res.json()
+    }
+  } catch (e) {
+    console.error('Не удалось загрузить список демо-датасетов:', e)
+  } finally {
+    isLoading.value = false
+  }
+})
+
+function openDataset(slug) {
+  router.push(`/workspace/demo/${slug}`)
 }
 </script>
 
@@ -23,15 +29,19 @@ function openDataset(id) {
   <main class="demo-page container">
     <div class="demo-page__inner">
       <h1 class="demo-page__title">Демо-датасеты</h1>
-      <div class="demo-grid">
+      <p class="demo-page__subtitle">Выберите один из готовых наборов данных для исследования</p>
+
+      <div v-if="isLoading" class="demo-page__loading">Загрузка…</div>
+
+      <div v-else class="demo-grid">
         <div 
           v-for="dataset in demoDatasets" 
-          :key="dataset.id" 
+          :key="dataset.slug" 
           class="demo-card"
-          @click="openDataset(dataset.id)"
+          @click="openDataset(dataset.slug)"
         >
           <div class="demo-card__icon">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
               <polyline points="14 2 14 8 20 8"></polyline>
               <line x1="16" y1="13" x2="8" y2="13"></line>
@@ -40,6 +50,7 @@ function openDataset(id) {
             </svg>
           </div>
           <span class="demo-card__name">{{ dataset.name }}</span>
+          <span class="demo-card__desc">{{ dataset.description }}</span>
         </div>
       </div>
     </div>
@@ -55,7 +66,7 @@ function openDataset(id) {
 
 .demo-page__inner {
   width: 100%;
-  max-width: 800px;
+  max-width: 900px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
@@ -67,13 +78,26 @@ function openDataset(id) {
   text-align: center;
   font-size: var(--font-size-2xl);
   font-weight: 700;
-  margin-bottom: var(--space-12);
+  margin-bottom: var(--space-2);
+}
+
+.demo-page__subtitle {
+  text-align: center;
+  font-size: var(--font-size-base);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-10);
+}
+
+.demo-page__loading {
+  text-align: center;
+  padding: var(--space-10);
+  color: var(--color-text-tertiary);
 }
 
 .demo-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: var(--space-6);
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-4);
 }
 
 .demo-card {
@@ -81,20 +105,20 @@ function openDataset(id) {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--space-3);
-  padding: var(--space-8) var(--space-4);
+  gap: var(--space-2);
+  padding: var(--space-6) var(--space-4);
   background: var(--color-bg-secondary);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   cursor: pointer;
   transition: all var(--transition-fast);
+  text-align: center;
 }
 
 .demo-card:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
   border-color: var(--color-accent);
-  color: var(--color-accent);
 }
 
 .demo-card__icon {
@@ -108,7 +132,12 @@ function openDataset(id) {
 
 .demo-card__name {
   font-size: var(--font-size-base);
-  font-weight: 500;
-  text-align: center;
+  font-weight: 600;
+}
+
+.demo-card__desc {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  line-height: 1.4;
 }
 </style>
