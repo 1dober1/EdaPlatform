@@ -1,0 +1,16 @@
+Id,MSSubClass,MSZoning,LotFrontage,LotArea,Street,LotShape,LandContour,Utilities,LotConfig,Neighborhood,OverallQual,OverallCond,YearBuilt,GrLivArea,FullBath,HalfBath,BedroomAbvGr,TotRmsAbvGrd,GarageCars,GarageArea,SalePrice
+1,60,RL,65,8450,Pave,Reg,Lvl,AllPub,Inside,CollgCr,7,5,2003,1710,2,1,3,8,2,548,208500
+2,20,RL,80,9600,Pave,Reg,Lvl,AllPub,FR2,Veenker,6,8,1976,1262,2,0,3,6,2,460,181500
+3,60,RL,68,11250,Pave,IR1,Lvl,AllPub,Inside,CollgCr,7,5,2001,1786,2,1,3,6,2,608,223500
+4,70,RL,60,9550,Pave,IR1,Lvl,AllPub,Corner,Crawfor,7,5,1915,1717,1,0,3,7,3,642,140000
+5,60,RL,84,14260,Pave,IR1,Lvl,AllPub,FR2,NoRidge,8,5,2000,2198,2,1,4,9,3,836,250000
+6,50,RL,85,14115,Pave,IR1,Lvl,AllPub,Inside,Mitchel,5,5,1993,1362,1,1,1,5,2,480,143000
+7,20,RL,75,10084,Pave,Reg,Lvl,AllPub,Inside,Somerst,8,5,2004,1694,2,0,3,7,2,636,307000
+8,60,RL,,10382,Pave,IR1,Lvl,AllPub,Corner,NWAmes,7,6,1973,2090,2,1,3,7,2,484,200000
+9,50,RM,51,6120,Pave,Reg,Lvl,AllPub,Inside,OldTown,7,5,1931,1774,2,0,4,8,2,468,129900
+10,190,RL,50,7420,Pave,Reg,Lvl,AllPub,Corner,BrkSide,5,6,1939,1077,1,0,2,5,1,205,118000
+11,20,RL,70,11200,Pave,Reg,Lvl,AllPub,Inside,Sawyer,6,5,1965,1040,1,0,3,5,1,384,129500
+12,60,RL,,11924,Pave,IR1,Lvl,AllPub,Inside,NridgHt,9,5,2005,2324,3,0,4,11,3,736,345000
+13,20,RL,85,12968,Pave,Reg,Lvl,AllPub,Inside,Sawyer,5,6,1962,912,1,0,2,4,1,352,144000
+14,20,RL,80,10000,Pave,Reg,Lvl,AllPub,Inside,CollgCr,7,5,2006,1494,2,0,3,6,2,564,279500
+15,20,RL,,10000,Pave,IR1,Lvl,AllPub,Inside,NAmes,6,5,1960,1253,1,1,2,7,2,564,157000
