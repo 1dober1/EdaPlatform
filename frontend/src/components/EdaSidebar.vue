@@ -16,6 +16,7 @@ const emit = defineEmits([
   'change-type',
   'normalize-column',
   'set-target',
+  'open-chart',
 ])
 
 const isCollapsed = ref(false)
@@ -77,6 +78,7 @@ function handleRemoveDuplicates() {
 function pandasType(col) {
   const t = props.columnTypes[col]
   if (t === 'number') return 'float64'
+  if (t === 'integer') return 'int64'
   if (t === 'boolean') return 'bool'
   return 'object'
 }
@@ -131,13 +133,13 @@ function handleSetTarget(val) {
             <div v-for="d in describeData" :key="d.column" class="stat-card">
               <div class="stat-card__header">
                 <span class="stat-card__name">{{ d.column }}</span>
-                <span class="stat-card__type" :class="'type--' + d.type">{{ d.type === 'number' ? 'float64' : 'object' }}</span>
+                <span class="stat-card__type" :class="'type--' + d.type">{{ d.type === 'number' ? 'float64' : d.type === 'integer' ? 'int64' : 'object' }}</span>
               </div>
               <div class="stat-card__body">
                 <div class="stat-row"><span>Non-null</span><span>{{ d.nonNull?.toLocaleString() }}</span></div>
                 <div class="stat-row"><span>Null</span><span>{{ d.nulls?.toLocaleString() }} ({{ d.nullPercent }}%)</span></div>
                 <div class="stat-row"><span>Unique</span><span>{{ d.unique?.toLocaleString() ?? '—' }}</span></div>
-                <template v-if="d.type === 'number'">
+                <template v-if="d.type === 'number' || d.type === 'integer'">
                   <div class="stat-row"><span>Mean</span><span>{{ d.mean }}</span></div>
                   <div class="stat-row"><span>Std</span><span>{{ d.std }}</span></div>
                   <div class="stat-row"><span>Min / Max</span><span>{{ d.min }} / {{ d.max }}</span></div>
@@ -238,10 +240,9 @@ function handleSetTarget(val) {
       <h4 class="sidebar__subtitle">Графики</h4>
       <div class="sidebar__section">
         <div v-for="chart in charts" :key="chart.id" class="tool-item">
-          <button class="tool-item__btn" disabled>
+          <button class="tool-item__btn" @click="emit('open-chart', chart.id)">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path :d="chart.icon" /></svg>
             <span class="tool-item__label">{{ chart.label }}</span>
-            <span class="tool-item__soon">скоро</span>
           </button>
         </div>
       </div>
@@ -319,11 +320,6 @@ function handleSetTarget(val) {
 .tool-item__btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .tool-item__label { flex: 1; }
 .tool-item__chevron { flex-shrink: 0; opacity: 0.4; }
-.tool-item__soon {
-  font-size: 9px; font-weight: 500; padding: 1px 5px;
-  border-radius: var(--radius-full); background: var(--color-bg-tertiary);
-  color: var(--color-text-tertiary); text-transform: uppercase;
-}
 
 /* Tool Panel */
 .tool-panel { padding: var(--space-2) var(--space-3) var(--space-3); }
@@ -369,7 +365,7 @@ function handleSetTarget(val) {
 .stat-card__header { display: flex; justify-content: space-between; align-items: center; padding: 4px 8px; border-bottom: 1px solid var(--color-border-light); background: var(--color-bg-tertiary); }
 .stat-card__name { font-size: 11px; font-weight: 600; color: var(--color-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .stat-card__type { font-size: 9px; font-weight: 500; padding: 1px 5px; border-radius: var(--radius-full); }
-.type--number { background: rgba(79, 110, 247, 0.1); color: #4f6ef7; }
+.type--number, .type--integer { background: rgba(79, 110, 247, 0.1); color: #4f6ef7; }
 .type--string { background: rgba(34, 197, 94, 0.1); color: #22c55e; }
 .type--boolean { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
 .type--mixed { background: rgba(239, 68, 68, 0.1); color: #ef4444; }

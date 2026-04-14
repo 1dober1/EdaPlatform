@@ -47,6 +47,7 @@ const visibleOnScreen = computed(() => {
 function pandasType(col) {
   const t = props.columnTypes[col]
   if (t === 'number') return 'float64'
+  if (t === 'integer') return 'int64'
   if (t === 'boolean') return 'bool'
   if (t === 'empty') return 'empty'
   return 'object'
@@ -80,7 +81,7 @@ function cellClass(col, value) {
   const classes = ['cell']
   if (value === null || value === undefined || value === '') {
     classes.push('cell--null')
-  } else if (props.columnTypes[col] === 'number') {
+  } else if (props.columnTypes[col] === 'number' || props.columnTypes[col] === 'integer') {
     classes.push('cell--number')
   }
   if (col === props.targetVariable) {

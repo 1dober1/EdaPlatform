@@ -7,10 +7,11 @@
  * Определяет тип колонки по значениям.
  * @param {object[]} rows
  * @param {string} col
- * @returns {'number' | 'string' | 'boolean' | 'mixed' | 'empty'}
+ * @returns {'number' | 'integer' | 'string' | 'boolean' | 'mixed' | 'empty'}
  */
 export function inferColumnType(rows, col) {
   let numCount = 0
+  let intCount = 0
   let strCount = 0
   let boolCount = 0
   let nullCount = 0
@@ -25,6 +26,7 @@ export function inferColumnType(rows, col) {
     if (typeof val === 'boolean') { boolCount++; continue }
     if (typeof val === 'number' || (typeof val === 'string' && val.trim() !== '' && !isNaN(Number(val)))) {
       numCount++
+      if (Number.isInteger(Number(val))) intCount++
     } else {
       strCount++
     }
@@ -32,7 +34,9 @@ export function inferColumnType(rows, col) {
 
   const total = sampleSize - nullCount
   if (total === 0) return 'empty'
-  if (numCount / total > 0.8) return 'number'
+  if (numCount / total > 0.8) {
+    return intCount === numCount ? 'integer' : 'number'
+  }
   if (boolCount / total > 0.8) return 'boolean'
   if (strCount / total > 0.5) return 'string'
   return 'mixed'
@@ -65,7 +69,7 @@ export function describeColumn(rows, col) {
     nullPercent: totalCount > 0 ? ((nullCount / totalCount) * 100).toFixed(1) : '0.0',
   }
 
-  if (type === 'number') {
+  if (type === 'number' || type === 'integer') {
     const nums = values.map(Number).filter(n => !isNaN(n))
     nums.sort((a, b) => a - b)
     const sum = nums.reduce((s, n) => s + n, 0)

@@ -6,6 +6,7 @@ import { parseFile, parseText } from '@/utils/dataParser'
 import DataToolbar from '@/components/DataToolbar.vue'
 import VirtualTable from '@/components/VirtualTable.vue'
 import EdaSidebar from '@/components/EdaSidebar.vue'
+import ChartModal from '@/components/ChartModal.vue'
 import Papa from 'papaparse'
 
 const route = useRoute()
@@ -13,6 +14,9 @@ const store = useWorkspaceStore()
 
 const isLoading = ref(true)
 const errorMsg = ref(null)
+
+const chartModalOpen = ref(false)
+const selectedChartType = ref(null)
 
 const describeData = computed(() => store.getDescribe())
 
@@ -80,6 +84,11 @@ function handleSetTarget(col) {
   store.targetVariable = col
 }
 
+function handleOpenChart(type) {
+  selectedChartType.value = type
+  chartModalOpen.value = true
+}
+
 function handleExport() {
   const csv = Papa.unparse(store.rows)
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
@@ -136,8 +145,19 @@ function handleExport() {
           @change-type="handleChangeType"
           @normalize-column="handleNormalizeColumn"
           @set-target="handleSetTarget"
+          @open-chart="handleOpenChart"
         />
       </div>
+
+      <ChartModal
+        :isOpen="chartModalOpen"
+        :chartType="selectedChartType"
+        :rows="store.rows"
+        :columns="store.columns"
+        :columnTypes="store.columnTypes"
+        :targetVariable="store.targetVariable"
+        @close="chartModalOpen = false"
+      />
     </template>
   </div>
 </template>
