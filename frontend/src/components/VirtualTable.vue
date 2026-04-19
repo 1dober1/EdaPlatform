@@ -8,7 +8,7 @@ const props = defineProps({
   targetVariable: { type: String, default: null },
 })
 
-const emit = defineEmits(['delete-column'])
+const emit = defineEmits(['delete-column', 'rename-column'])
 
 const ROW_HEIGHT = 34
 const BUFFER_ROWS = 10
@@ -16,6 +16,21 @@ const BUFFER_ROWS = 10
 const scrollContainerRef = ref(null)
 const scrollTop = ref(0)
 const containerHeight = ref(600)
+
+const editingCol = ref(null)
+const editName = ref('')
+
+function startEdit(col) {
+  editingCol.value = col
+  editName.value = col
+}
+
+function finishEdit() {
+  if (editingCol.value && editName.value.trim() !== '' && editName.value !== editingCol.value) {
+    emit('rename-column', editingCol.value, editName.value.trim())
+  }
+  editingCol.value = null
+}
 
 const totalRows = computed(() => props.rows.length)
 
@@ -124,7 +139,18 @@ onUnmounted(() => {
             <th v-for="col in columns" :key="col" :class="thClass(col)">
               <div class="vtable__th-content">
                 <div class="vtable__th-left">
-                  <span class="vtable__col-name">{{ col }}</span>
+                  <input
+                    v-if="editingCol === col"
+                    v-model="editName"
+                    @blur="finishEdit"
+                    @keyup.enter="finishEdit"
+                    @keyup.esc="editingCol = null"
+                    class="vtable__col-input"
+                    v-focus
+                  />
+                  <span v-else class="vtable__col-name" @dblclick="startEdit(col)" title="Двойной клик для переименования">
+                    {{ col }}
+                  </span>
                   <div class="vtable__col-meta">
                     <span class="vtable__col-type">{{ pandasType(col) }}</span>
                     <span
@@ -231,6 +257,20 @@ onUnmounted(() => {
 
 .vtable__col-name {
   line-height: 1.3;
+  cursor: text;
+}
+
+.vtable__col-input {
+  width: 100%;
+  font-family: var(--font-family);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  padding: 0 2px;
+  border: 1px solid var(--color-accent);
+  border-radius: 2px;
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  outline: none;
 }
 
 .vtable__col-meta {

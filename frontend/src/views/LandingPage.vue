@@ -1,25 +1,18 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 
-/* ---- Animated stats counter ---- */
-// TODO: В будущем получать актуальную статистику с бэкенда (например, /api/stats/)
-// Пока используются хардкод значения для презентации
-const stats = ref([
-  { label: 'Датасетов в системе', value: 0, target: 450, suffix: '+' },
-  { label: 'Графиков построено', value: 0, target: 6048, suffix: '+' },
-  { label: 'Пользователей', value: 0, target: 234, suffix: '+' },
-])
+const stats = ref({ users: 0, datasets: 0, charts: 0 })
 
-function animateCounters() {
-  stats.value.forEach((stat) => {
-    const duration = 2000
-    const step = Math.ceil(stat.target / (duration / 16))
-    const interval = setInterval(() => {
-      stat.value = Math.min(stat.value + step, stat.target)
-      if (stat.value >= stat.target) clearInterval(interval)
-    }, 16)
-  })
-}
+onMounted(async () => {
+  try {
+    const res = await fetch('http://localhost:8000/api/datasets/stats/')
+    if (res.ok) {
+      stats.value = await res.json()
+    }
+  } catch (e) {
+    console.warn('Could not load stats:', e)
+  }
+})
 
 /* ---- Features list ---- */
 const features = [
@@ -45,20 +38,6 @@ const features = [
   },
 ]
 
-onMounted(() => {
-  /* Start counters when hero scrolls into view */
-  const observer = new IntersectionObserver(
-    (entries) => {
-      if (entries[0].isIntersecting) {
-        animateCounters()
-        observer.disconnect()
-      }
-    },
-    { threshold: 0.3 }
-  )
-  const el = document.querySelector('.landing-stats')
-  if (el) observer.observe(el)
-})
 </script>
 
 <template>
@@ -101,16 +80,6 @@ onMounted(() => {
       </div>
     </section>
 
-    <!-- ========== Stats ========== -->
-    <section class="landing-stats container">
-      <div class="landing-stats__grid">
-        <div v-for="stat in stats" :key="stat.label" class="stat-card">
-          <span class="stat-card__value">{{ stat.value.toLocaleString('ru-RU') }}{{ stat.suffix }}</span>
-          <span class="stat-card__label">{{ stat.label }}</span>
-        </div>
-      </div>
-    </section>
-
     <!-- ========== Features ========== -->
     <section class="features container">
       <h2 class="features__heading">Возможности платформы</h2>
@@ -146,7 +115,7 @@ onMounted(() => {
         <h2 class="cta__heading">Готовы попробовать?</h2>
         <p class="cta__text">Загрузите свой датасет или начните с демо&nbsp;данных прямо сейчас.</p>
         <div class="cta__actions">
-          <router-link to="/upload" class="btn btn--hero-primary" id="btn-cta-start">
+          <router-link to="/dashboard" class="btn btn--hero-primary" id="btn-cta-start">
             Начать работу
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <line x1="5" y1="12" x2="19" y2="12"/>
@@ -242,12 +211,40 @@ onMounted(() => {
   padding: var(--space-1) var(--space-4);
   font-size: var(--font-size-xs);
   font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
   color: var(--color-accent);
   background: var(--color-accent-light);
-  border: 1px solid rgba(79, 110, 247, 0.15);
   border-radius: var(--radius-full);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.hero__stats {
+  display: flex;
+  gap: var(--space-8);
+  margin-top: var(--space-8);
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--color-border);
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.stat-num {
+  font-size: var(--font-size-2xl);
+  font-weight: 800;
+  background: var(--color-accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.stat-label {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  font-weight: 500;
 }
 
 .hero__title {
@@ -314,53 +311,6 @@ onMounted(() => {
 .btn--hero-primary:hover {
   box-shadow: 0 6px 28px rgba(79, 110, 247, 0.4);
   transform: translateY(-2px);
-}
-
-/* ---------- Stats ---------- */
-.landing-stats {
-  margin-top: calc(-1 * var(--space-10));
-  margin-bottom: var(--space-20);
-  position: relative;
-  z-index: 2;
-}
-
-.landing-stats__grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-6);
-}
-
-.stat-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-1);
-  padding: var(--space-8) var(--space-4);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-md);
-  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
-}
-
-.stat-card:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--shadow-lg);
-}
-
-.stat-card__value {
-  font-size: var(--font-size-3xl);
-  font-weight: 800;
-  background: var(--color-accent-gradient);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.stat-card__label {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-tertiary);
-  font-weight: 500;
 }
 
 /* ---------- Features ---------- */
@@ -484,16 +434,8 @@ onMounted(() => {
     font-size: var(--font-size-base);
   }
 
-  .landing-stats__grid {
-    grid-template-columns: 1fr;
-  }
-
   .features__grid {
     grid-template-columns: 1fr;
-  }
-
-  .stat-card__value {
-    font-size: var(--font-size-2xl);
   }
 }
 

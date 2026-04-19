@@ -34,6 +34,11 @@ const router = createRouter({
       component: () => import('../views/DashboardPage.vue'),
     },
     {
+      path: '/saved-datasets',
+      name: 'saved-datasets',
+      component: () => import('../views/SavedDatasetsPage.vue'),
+    },
+    {
       path: '/workspace/:source/:id',
       name: 'workspace',
       component: () => import('../views/WorkspacePage.vue'),
@@ -41,11 +46,13 @@ const router = createRouter({
   ],
 })
 
-// Simple Route Guard for demo purposes
+import { useAuthStore } from '@/stores/auth'
+
+// Route Guard
 router.beforeEach((to, from, next) => {
-  const isAuthenticated = !!localStorage.getItem('eda-token')
+  const authStore = useAuthStore()
   
-  if (to.name === 'dashboard' && !isAuthenticated) {
+  if ((to.name === 'dashboard' || to.name === 'saved-datasets') && !authStore.isAuthenticated) {
     next({ name: 'auth-prompt' })
   } else {
     next()

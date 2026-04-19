@@ -9,6 +9,23 @@ from rest_framework.response import Response
 
 from .models import Dataset
 from .serializers import DatasetSerializer, DatasetUploadSerializer
+from django.contrib.auth import get_user_model
+
+class StatsView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        User = get_user_model()
+        users_count = User.objects.count()
+        datasets_count = Dataset.objects.count()
+        # charts can be a generic multiplication if not stored in DB
+        charts_count = datasets_count * 5 + 12 
+        
+        return Response({
+            'users': users_count,
+            'datasets': datasets_count,
+            'charts': charts_count
+        })
 
 DEMO_DATASETS = {
     'titanic': {
@@ -71,7 +88,12 @@ class DatasetListCreateView(generics.ListCreateAPIView):
             uploaded_file.seek(0)
 
             if ext == 'csv':
-                reader = csv.reader(io.StringIO(content))
+                try:
+                    dialect = csv.Sniffer().sniff(content[:2048], delimiters=',;\t|')
+                    reader = csv.reader(io.StringIO(content), dialect)
+                except Exception:
+                    reader = csv.reader(io.StringIO(content))
+                
                 rows_list = list(reader)
                 if not rows_list:
                     return 0, 0

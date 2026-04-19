@@ -50,8 +50,10 @@ function pearson(xSeries, ySeries) {
 }
 
 function getQuantiles(arr) {
-  const sorted = arr.filter(n => n !== null && !isNaN(n)).sort((a,b) => a-b)
-  if (sorted.length === 0) return [0,0,0,0,0]
+  const valid = arr.filter(v => v !== null && v !== undefined && v !== '')
+  const nums = valid.map(Number).filter(n => !isNaN(n))
+  if (nums.length === 0) return [0,0,0,0,0]
+  const sorted = nums.sort((a,b) => a-b)
   const q1 = sorted[Math.floor(sorted.length * 0.25)]
   const median = sorted[Math.floor(sorted.length * 0.5)]
   const q3 = sorted[Math.floor(sorted.length * 0.75)]
@@ -66,7 +68,9 @@ const chartOptions = computed(() => {
     const type = props.columnTypes[selectedX.value]
     if (type === 'number' || type === 'integer') {
       // Histogram
-      const vals = props.rows.map(r => r[selectedX.value]).filter(v => v !== null && !isNaN(v)).map(Number)
+      const rawVals = props.rows.map(r => r[selectedX.value])
+      const validVals = rawVals.filter(v => v !== null && v !== undefined && v !== '')
+      const vals = validVals.map(Number).filter(n => !isNaN(n))
       if (vals.length === 0) return {}
       const min = Math.min(...vals)
       const max = Math.max(...vals)
@@ -109,10 +113,14 @@ const chartOptions = computed(() => {
   if (props.chartType === 'scatter' && selectedX.value && selectedY.value) {
     const data = []
     props.rows.forEach(r => {
-      const vx = Number(r[selectedX.value])
-      const vy = Number(r[selectedY.value])
-      if (!isNaN(vx) && !isNaN(vy)) {
-        data.push([vx, vy])
+      const vxRaw = r[selectedX.value]
+      const vyRaw = r[selectedY.value]
+      if (vxRaw !== null && vxRaw !== '' && vyRaw !== null && vyRaw !== '') {
+        const vx = Number(vxRaw)
+        const vy = Number(vyRaw)
+        if (!isNaN(vx) && !isNaN(vy)) {
+          data.push([vx, vy])
+        }
       }
     })
     return {
@@ -129,9 +137,9 @@ const chartOptions = computed(() => {
     const corrMat = []
     
     for (let i = 0; i < cols.length; i++) {
-      const iVals = props.rows.map(r => Number(r[cols[i]]))
+      const iVals = props.rows.map(r => r[cols[i]] !== null && r[cols[i]] !== '' ? Number(r[cols[i]]) : null)
       for (let j = 0; j < cols.length; j++) {
-        const jVals = props.rows.map(r => Number(r[cols[j]]))
+        const jVals = props.rows.map(r => r[cols[j]] !== null && r[cols[j]] !== '' ? Number(r[cols[j]]) : null)
         const c = cols[i] === cols[j] ? 1 : pearson(iVals, jVals)
         corrMat.push([j, i, c.toFixed(2)])
       }
@@ -158,8 +166,8 @@ const chartOptions = computed(() => {
   if (props.chartType === 'boxplot') {
     const cols = numericColumns.value
     const boxData = cols.map(c => {
-      const arr = props.rows.map(r => Number(r[c]))
-      return getQuantiles(arr)
+      const rawVals = props.rows.map(r => r[c])
+      return getQuantiles(rawVals)
     })
     
     return {

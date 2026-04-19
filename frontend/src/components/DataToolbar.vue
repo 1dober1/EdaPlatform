@@ -7,9 +7,11 @@ const props = defineProps({
   totalColumns: { type: Number, default: 0 },
   fileSize: { type: Number, default: 0 },
   format: { type: String, default: '' },
+  canUndo: { type: Boolean, default: false },
+  canRedo: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['update:modelValue'])
+const emit = defineEmits(['update:modelValue', 'undo', 'redo'])
 
 const isEditing = ref(false)
 const editValue = ref(props.modelValue)
@@ -53,6 +55,15 @@ function formatBytes(bytes) {
         {{ modelValue }}
         <svg class="toolbar__edit-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
       </h2>
+    </div>
+
+    <div class="toolbar__history">
+      <button class="btn btn--sm btn--icon-text" :disabled="!canUndo" @click="emit('undo')" title="Отменить последнее действие (Undo)">
+        <svg fill="none" width="14" height="14" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 7v6h6" /><path d="M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13" /></svg>
+      </button>
+      <button class="btn btn--sm btn--icon-text" :disabled="!canRedo" @click="emit('redo')" title="Вернуть действие (Redo)">
+        <svg fill="none" width="14" height="14" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 7v6h-6" /><path d="M3 17a9 9 0 019-9 9 9 0 016 2.3l3 2.7" /></svg>
+      </button>
     </div>
 
     <div class="toolbar__badges">
@@ -129,6 +140,36 @@ function formatBytes(bytes) {
   padding: var(--space-1) var(--space-2);
   outline: none;
   width: 260px;
+}
+
+.toolbar__history {
+  display: flex;
+  gap: var(--space-2);
+  margin-right: auto;
+  margin-left: var(--space-4);
+}
+
+.btn--icon-text {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn--icon-text:hover:not(:disabled) {
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+}
+
+.btn--icon-text:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .toolbar__badges {

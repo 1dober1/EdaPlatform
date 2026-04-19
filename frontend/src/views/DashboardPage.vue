@@ -2,10 +2,12 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useWorkspaceStore } from '@/stores/workspace'
+import { useAuthStore } from '@/stores/auth'
 import { parseFile } from '@/utils/dataParser'
 
 const router = useRouter()
 const store = useWorkspaceStore()
+const authStore = useAuthStore()
 
 const isDragging = ref(false)
 const isProcessing = ref(false)
@@ -30,14 +32,31 @@ async function handleFile(file) {
     isProcessing.value = true
     errorMsg.value = null
 
-    const result = await parseFile(file)
-    store.setData(
-      file.name.replace(/\.[^.]+$/, ''),
-      result.columns,
-      result.rows,
-      result.meta,
-    )
-    router.push('/workspace/upload/local')
+    if (authStore.isAuthenticated) {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('name', file.name.replace(/\.[^.]+$/, ''))
+      
+      const req = await fetch('http://localhost:8000/api/datasets/', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${authStore.token}` },
+        body: formData
+      })
+      if (!req.ok) throw new Error('Ошибка загрузки датасета на сервер')
+      const dataset = await req.json()
+      router.push(`/workspace/saved/${dataset.id}`)
+    } else {
+      const result = await parseFile(file)
+      store.setData(
+        file.name.replace(/\.[^.]+$/, ''),
+        result.columns,
+        result.rows,
+        result.meta,
+        'upload',
+        'local'
+      )
+      router.push('/workspace/upload/local')
+    }
   } catch (e) {
     errorMsg.value = e.message
   } finally {
@@ -50,8 +69,8 @@ async function handleFile(file) {
   <main class="dashboard container">
     <div class="dashboard__inner">
       <div class="dashboard__header">
-        <h1 class="dashboard__empty-text">У вас пока нет сохраненных проектов.</h1>
-        <p class="dashboard__empty-subtext">Загрузите свой первый датасет</p>
+        <h1 class="dashboard__empty-text">Рабочее пространство</h1>
+        <p class="dashboard__empty-subtext">Откройте или перетащите файл для начала работы</p>
       </div>
 
       <div v-if="errorMsg" class="dashboard__error">

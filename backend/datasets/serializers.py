@@ -12,7 +12,8 @@ class DatasetSerializer(serializers.ModelSerializer):
 class DatasetUploadSerializer(serializers.ModelSerializer):
     class Meta:
         model = Dataset
-        fields = ('name', 'file')
+        fields = ('id', 'name', 'file')
+        read_only_fields = ('id',)
 
     def validate_file(self, value):
         ext = value.name.rsplit('.', 1)[-1].lower()

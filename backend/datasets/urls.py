@@ -4,7 +4,9 @@ from .views import (
     DatasetDetailView,
     DatasetDownloadView,
     DemoListView,
+    DemoListView,
     DemoDetailView,
+    StatsView,
 )
 
 urlpatterns = [
@@ -13,4 +15,5 @@ urlpatterns = [
     path('<int:pk>/download/', DatasetDownloadView.as_view(), name='dataset-download'),
     path('demo/', DemoListView.as_view(), name='demo-list'),
     path('demo/<slug:slug>/', DemoDetailView.as_view(), name='demo-detail'),
+    path('stats/', StatsView.as_view(), name='stats'),
 ]

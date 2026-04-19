@@ -1,5 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue'
+import { useAuthStore } from '@/stores/auth'
+import { useRouter } from 'vue-router'
 
 const props = defineProps({
   describeData: { type: Array, default: () => [] },
@@ -15,12 +17,26 @@ const emit = defineEmits([
   'remove-duplicates',
   'change-type',
   'normalize-column',
+  'clip-column',
+  'encode-column',
   'set-target',
   'open-chart',
 ])
 
 const isCollapsed = ref(false)
 const activeSection = ref(null)
+
+const authStore = useAuthStore()
+const router = useRouter()
+
+function handleExport() {
+  if (!authStore.isAuthenticated) {
+    alert('Для экспорта датасета необходимо зарегистрироваться в системе')
+    router.push('/register')
+    return
+  }
+  emit('export')
+}
 
 // ─── Tool definitions ──────────────────────────────────────────
 const tools = [
@@ -29,6 +45,8 @@ const tools = [
   { id: 'duplicates', label: 'Дубликаты', icon: 'M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2M9 2h6v4H9z' },
   { id: 'types', label: 'Типы данных', icon: 'M7 7h10v10H7zM3 3l4 4M17 3l-4 4M3 21l4-4M17 21l-4-4' },
   { id: 'normalize', label: 'Нормализация', icon: 'M22 12h-4l-3 9L9 3l-3 9H2' },
+  { id: 'clip', label: 'Обрезка значений', icon: 'M6 2v14a2 2 0 0 0 2 2h14 M18 22V8a2 2 0 0 0-2-2H2' },
+  { id: 'encode', label: 'Кодирование', icon: 'M7 20l4-16m2 16l4-16M6 9h14M4 15h14' },
   { id: 'target', label: 'Целевая переменная', icon: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 14a4 4 0 1 1 0-8 4 4 0 0 1 0 8z' },
 ]
 
@@ -89,11 +107,38 @@ function handleChangeType(col, newType) {
 
 // ─── Normalize ─────────────────────────────────────────────────
 const numericColumns = computed(() => {
-  return props.columns.filter(c => props.columnTypes[c] === 'number')
+  return props.columns.filter(c => props.columnTypes[c] === 'number' || props.columnTypes[c] === 'integer')
 })
 
 function handleNormalize(col, method) {
   emit('normalize-column', col, method)
+}
+
+// ─── Clip ─────────────────────────────────────────────────
+import { watch } from 'vue'
+
+const clipBounds = ref({})
+
+watch(() => props.columns, (cols) => {
+  cols.forEach(c => {
+    if (!clipBounds.value[c]) clipBounds.value[c] = { min: '', max: '' }
+  })
+}, { immediate: true })
+
+function handleClip(col, method, minVal = null, maxVal = null) {
+  emit('clip-column', col, method, minVal, maxVal)
+}
+
+// ─── Encode ───────────────────────────────────────────────
+const categoricalColumns = computed(() => {
+  return props.columns.filter(c => {
+    const t = props.columnTypes[c]
+    return t === 'object' || t === 'string' || t === 'boolean' || t === 'mixed'
+  })
+})
+
+function handleEncode(col, method) {
+  emit('encode-column', col, method)
 }
 
 // ─── Target ────────────────────────────────────────────────────
@@ -221,6 +266,38 @@ function handleSetTarget(val) {
             </div>
           </div>
 
+          <!-- ═══ CLIP (per-column) ═══ -->
+          <div v-if="activeSection === 'clip' && tool.id === 'clip'" class="tool-panel">
+            <div v-if="numericColumns.length === 0" class="tool-panel__empty">
+              Нет числовых столбцов
+            </div>
+            <div v-for="col in numericColumns" :key="col" class="norm-card" style="flex-direction: column; align-items: stretch;">
+              <span class="norm-card__name" style="margin-bottom: 6px; max-width: 100%;">{{ col }}</span>
+              <div class="clip-actions" style="display: flex; gap: 4px; margin-bottom: 6px;">
+                <button class="act-btn act-btn--wide" @click="handleClip(col, 'quantile')">По квантилям (1% — 99%)</button>
+              </div>
+              <div class="clip-manual" style="display: flex; gap: 4px;" v-if="clipBounds[col]">
+                <input type="number" class="tool-panel__select" placeholder="Min" v-model="clipBounds[col].min" style="flex: 1; padding: 4px 6px;">
+                <input type="number" class="tool-panel__select" placeholder="Max" v-model="clipBounds[col].max" style="flex: 1; padding: 4px 6px;">
+                <button class="act-btn" @click="handleClip(col, 'manual', clipBounds[col].min, clipBounds[col].max)">OK</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ═══ ENCODE (per-column) ═══ -->
+          <div v-if="activeSection === 'encode' && tool.id === 'encode'" class="tool-panel">
+            <div v-if="categoricalColumns.length === 0" class="tool-panel__empty">
+              Нет категориальных столбцов
+            </div>
+            <div v-for="col in categoricalColumns" :key="col" class="norm-card" style="flex-direction: column; align-items: stretch;">
+              <span class="norm-card__name" style="margin-bottom: 6px; max-width: 100%;">{{ col }}</span>
+              <div class="clip-actions" style="display: flex; gap: 4px;">
+                <button class="act-btn act-btn--wide" @click="handleEncode(col, 'label')">Label Env</button>
+                <button class="act-btn act-btn--wide" @click="handleEncode(col, 'onehot')">One-Hot</button>
+              </div>
+            </div>
+          </div>
+
           <!-- ═══ TARGET VARIABLE ═══ -->
           <div v-if="activeSection === 'target' && tool.id === 'target'" class="tool-panel">
             <p class="tool-panel__hint">Выберите целевую переменную:</p>
@@ -249,7 +326,7 @@ function handleSetTarget(val) {
 
       <!-- Export -->
       <div class="sidebar__export">
-        <button class="btn--accent-export" @click="emit('export')">
+        <button class="btn--accent-export" @click="handleExport">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Экспорт CSV
         </button>

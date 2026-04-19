@@ -1,10 +1,11 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
+const authStore = useAuthStore()
 const isDark = ref(false)
-const userEmail = ref(null)
 
 function toggleTheme() {
   isDark.value = !isDark.value
@@ -12,18 +13,8 @@ function toggleTheme() {
   localStorage.setItem('eda-theme', isDark.value ? 'dark' : 'light')
 }
 
-// Простая проверка авторизации (localStorage) 
-// В реальном проекте должен быть Pinia или Vuex
-function checkAuth() {
-  userEmail.value = localStorage.getItem('eda-user')
-}
-
-// При выходе
 function handleLogout() {
-  localStorage.removeItem('eda-token')
-  localStorage.removeItem('eda-user')
-  userEmail.value = null
-  router.push('/')
+  authStore.logout()
 }
 
 onMounted(() => {
@@ -32,15 +23,6 @@ onMounted(() => {
     isDark.value = true
     document.documentElement.setAttribute('data-theme', 'dark')
   }
-  
-  checkAuth()
-  
-  // Добавляем листенер для возможности обновления (если делать через window.dispatchEvent)
-  window.addEventListener('storage', checkAuth)
-})
-
-onUnmounted(() => {
-  window.removeEventListener('storage', checkAuth)
 })
 </script>
 
@@ -75,8 +57,12 @@ onUnmounted(() => {
           </svg>
         </button>
 
-        <template v-if="userEmail">
-          <span class="app-header__user-email">{{ userEmail }}</span>
+        <template v-if="authStore.isAuthenticated && authStore.user">
+          <router-link to="/saved-datasets" class="btn btn--outline btn--sm" id="btn-saved-header" title="Мои датасеты">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            Мои датасеты
+          </router-link>
+          <router-link to="/dashboard" class="app-header__user-email">{{ authStore.user.username }}</router-link>
           <button @click="handleLogout" class="btn btn--outline btn--sm" id="btn-logout-header">
             Выйти
           </button>
@@ -160,8 +146,14 @@ onUnmounted(() => {
 
 .app-header__user-email {
   font-size: var(--font-size-sm);
-  font-weight: 500;
+  font-weight: 600;
   color: var(--color-text-primary);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+.app-header__user-email:hover {
+  color: var(--color-accent);
 }
 
 /* Theme Toggle */
