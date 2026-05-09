@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useWorkspaceStore } from '@/stores/workspace'
 import { useAuthStore } from '@/stores/auth'
@@ -9,6 +9,7 @@ import VirtualTable from '@/components/VirtualTable.vue'
 import EdaSidebar from '@/components/EdaSidebar.vue'
 import ChartModal from '@/components/ChartModal.vue'
 import Papa from 'papaparse'
+import { parquetExport } from '@/utils/parquetExport'
 
 const route = useRoute()
 const store = useWorkspaceStore()
@@ -29,6 +30,8 @@ onMounted(async () => {
   const restored = await store.loadFromStorage()
   if (restored && store.datasetSource === source && String(store.datasetId) === String(id)) {
     isLoading.value = false
+    // Check if there is a pending export action after registration
+    checkPendingAction()
     return
   }
 
@@ -42,7 +45,19 @@ onMounted(async () => {
     }
     isLoading.value = false
   }
+  checkPendingAction()
 })
+
+function checkPendingAction() {
+  const pending = localStorage.getItem('eda_pending_action')
+  if (pending === 'export') {
+    localStorage.removeItem('eda_pending_action')
+    // Give the user a moment to see the workspace, then prompt export
+    setTimeout(() => {
+      alert('Вы успешно авторизовались! Теперь вы можете экспортировать датасет.')
+    }, 500)
+  }
+}
 
 async function loadDemo(slug) {
   try {
@@ -168,16 +183,71 @@ function handleOpenChart(type) {
   chartModalOpen.value = true
 }
 
-function handleExport() {
-  const csv = Papa.unparse(store.rows)
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+// Replace string-encoded NaN values with real null
+function handleReplaceNanValues(col, keywords) {
+  store.replaceNanValues(col, keywords)
+}
+
+// Multi-format export
+function handleExport(format = 'csv') {
+  const baseName = store.datasetName || 'export'
+  let blob, ext
+  
+  if (format === 'csv') {
+    const csv = Papa.unparse(store.rows)
+    blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    ext = '.csv'
+  } else if (format === 'json') {
+    const json = JSON.stringify(store.rows, null, 2)
+    blob = new Blob([json], { type: 'application/json;charset=utf-8;' })
+    ext = '.json'
+  } else if (format === 'parquet') {
+    parquetExport(store.columns, store.rows, baseName)
+    return
+  } else {
+    return
+  }
+  
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = (store.datasetName || 'export') + '.csv'
+  a.download = baseName + ext
   a.click()
   URL.revokeObjectURL(url)
 }
+
+// Outlier removal
+function handleRemoveOutliers(col, method) {
+  store.removeOutliers(col, method)
+}
+
+// Versioning
+function handleSaveVersion(name) {
+  store.saveNamedVersion(name)
+  alert(`Версия «${name}» сохранена`)
+}
+
+function handleRestoreVersion(idx) {
+  store.restoreNamedVersion(idx)
+}
+
+// Sync dataset name changes to backend
+watch(() => store.datasetName, async (newName) => {
+  if (store.datasetSource === 'saved' && store.datasetId && authStore.isAuthenticated) {
+    try {
+      await fetch(`http://localhost:8000/api/datasets/${store.datasetId}/`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${authStore.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name: newName }),
+      })
+    } catch (e) {
+      console.warn('Could not sync dataset name:', e)
+    }
+  }
+})
 </script>
 
 <template>
@@ -225,6 +295,7 @@ function handleExport() {
           :targetVariable="store.targetVariable"
           @export="handleExport"
           @fill-nulls="handleFillNulls"
+          @replace-nan-values="handleReplaceNanValues"
           @remove-duplicates="handleRemoveDuplicates"
           @change-type="handleChangeType"
           @normalize-column="handleNormalizeColumn"
@@ -232,7 +303,23 @@ function handleExport() {
           @encode-column="handleEncodeColumn"
           @set-target="handleSetTarget"
           @open-chart="handleOpenChart"
-        />
+          @remove-outliers="handleRemoveOutliers"
+          @save-version="handleSaveVersion"
+          @restore-version="handleRestoreVersion"
+        >
+          <template #versions>
+            <div v-if="store.namedVersions.length === 0" class="tool-panel__empty" style="font-size:11px;color:var(--color-text-tertiary);padding:4px 0">
+              Нет сохранённых версий
+            </div>
+            <div v-for="(ver, idx) in store.namedVersions" :key="idx" class="version-item">
+              <div>
+                <div class="version-item__name">{{ ver.name }}</div>
+                <div class="version-item__meta">{{ ver.date }} · {{ ver.rowCount }} стр. · {{ ver.colCount }} столб.</div>
+              </div>
+              <button class="act-btn" @click="handleRestoreVersion(idx)">Восстановить</button>
+            </div>
+          </template>
+        </EdaSidebar>
       </div>
 
       <ChartModal

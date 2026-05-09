@@ -88,7 +88,7 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem('eda_token')
     localStorage.removeItem('eda_refresh')
     localStorage.removeItem('eda_user')
-    router.push('/login')
+    router.push('/')
   }
 
   return {

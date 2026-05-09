@@ -97,11 +97,11 @@ async function handleFile(file) {
               <line x1="12" y1="3" x2="12" y2="15"></line>
             </svg>
             <span class="dashboard__dropzone-text">Перетащите или откройте файл</span>
-            <span class="dashboard__dropzone-hint">Поддерживаются CSV, JSON</span>
+            <span class="dashboard__dropzone-hint">Поддерживаются CSV, JSON, Parquet, Excel (.xlsx, .xls)</span>
           </template>
         </div>
         <label class="dashboard__dropzone-trigger" v-show="!isProcessing">
-          <input type="file" accept=".csv,.json" @change="onFileSelect" />
+          <input type="file" accept=".csv,.json,.parquet,.xlsx,.xls" @change="onFileSelect" />
         </label>
       </div>
     </div>

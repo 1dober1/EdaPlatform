@@ -17,8 +17,8 @@ class DatasetUploadSerializer(serializers.ModelSerializer):
 
     def validate_file(self, value):
         ext = value.name.rsplit('.', 1)[-1].lower()
-        if ext not in ('csv', 'json'):
+        if ext not in ('csv', 'json', 'parquet', 'xlsx', 'xls'):
             raise serializers.ValidationError(
-                'Поддерживаются только файлы CSV и JSON.'
+                'Поддерживаются только файлы CSV, JSON, Parquet и Excel.'
             )
         return value

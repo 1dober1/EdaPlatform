@@ -77,6 +77,21 @@ const features = [
             </svg>
           </router-link>
         </div>
+
+        <div class="hero__stats" v-if="stats.users || stats.datasets || stats.charts">
+          <div class="stat-item">
+            <span class="stat-num">{{ stats.users }}</span>
+            <span class="stat-label">Пользователей</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-num">{{ stats.datasets }}</span>
+            <span class="stat-label">Датасетов</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-num">{{ stats.charts }}</span>
+            <span class="stat-label">Визуализаций</span>
+          </div>
+        </div>
       </div>
     </section>
 

@@ -6,6 +6,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { describeAll, inferColumnType } from '@/utils/dataStats'
+import { detectOutliersIQR, detectOutliersZScore } from '@/utils/outlierDetection'
 import NProgress from 'nprogress'
 import localforage from 'localforage'
 
@@ -403,10 +404,117 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     })
   }
 
+  /** Заменить строковые NaN-значения на null */
+  function replaceNanValues(col, keywords) {
+    withSync(() => {
+      const keySet = new Set(keywords.map(k => k.trim()))
+      let replaced = 0
+      rows.value = rows.value.map(row => {
+        const v = row[col]
+        if (v !== null && v !== undefined && keySet.has(String(v).trim())) {
+          replaced++
+          return { ...row, [col]: null }
+        }
+        return row
+      })
+      alert(`Столбец «${col}»: заменено ${replaced} значений на пустые (NaN).`)
+    })
+  }
+
   function clear() {
     history.value = []
     historyIndex.value = -1
+    namedVersions.value = []
     localforage.removeItem('eda_workspace_state')
+    localforage.removeItem('eda_named_versions')
+  }
+
+  /** Удалить выбросы из столбца по IQR или Z-score */
+  function removeOutliers(col, method) {
+    withSync(() => {
+      const values = rows.value.map(r => {
+        const v = r[col]
+        return (v !== null && v !== undefined && v !== '') ? Number(v) : null
+      })
+
+      let indicesToRemove = new Set()
+
+      if (method === 'iqr') {
+        const validValues = values.filter(v => v !== null && !isNaN(v))
+        const result = detectOutliersIQR(validValues)
+        // Map valid indices back to original indices
+        let validIdx = 0
+        values.forEach((v, i) => {
+          if (v !== null && !isNaN(v)) {
+            if (v < result.lower || v > result.upper) {
+              indicesToRemove.add(i)
+            }
+            validIdx++
+          }
+        })
+      } else if (method === 'zscore') {
+        const validValues = values.filter(v => v !== null && !isNaN(v))
+        const result = detectOutliersZScore(validValues)
+        let validIdx = 0
+        values.forEach((v, i) => {
+          if (v !== null && !isNaN(v)) {
+            const z = Math.abs((v - result.mean) / result.std)
+            if (z > result.threshold) {
+              indicesToRemove.add(i)
+            }
+            validIdx++
+          }
+        })
+      }
+
+      const removedCount = indicesToRemove.size
+      rows.value = rows.value.filter((_, i) => !indicesToRemove.has(i))
+      alert(`Удалено ${removedCount} выбросов из «${col}» (метод: ${method.toUpperCase()})`)
+    })
+  }
+
+  // ─── Named Versions ──────────────────────────────────────────
+  const namedVersions = ref([])
+
+  async function loadNamedVersions() {
+    try {
+      const saved = await localforage.getItem('eda_named_versions')
+      if (saved && Array.isArray(saved)) namedVersions.value = saved
+    } catch (e) {}
+  }
+  loadNamedVersions()
+
+  function saveNamedVersion(name) {
+    const snapshot = {
+      name,
+      date: new Date().toLocaleString('ru-RU'),
+      rowCount: rows.value.length,
+      colCount: columns.value.length,
+      columns: [...columns.value],
+      rows: rows.value.map(r => ({ ...r })),
+      targetVariable: targetVariable.value,
+      datasetName: datasetName.value,
+      meta: { ...meta.value },
+    }
+    namedVersions.value.push(snapshot)
+    // Keep max 20 versions
+    if (namedVersions.value.length > 20) namedVersions.value.shift()
+    localforage.setItem('eda_named_versions', JSON.parse(JSON.stringify(namedVersions.value)))
+  }
+
+  function restoreNamedVersion(idx) {
+    const ver = namedVersions.value[idx]
+    if (!ver) return
+    // Save current state before restoring
+    saveState()
+    columns.value = [...ver.columns]
+    rows.value = ver.rows.map(r => ({ ...r }))
+    targetVariable.value = ver.targetVariable
+    datasetName.value = ver.datasetName
+    if (ver.meta) meta.value = { ...ver.meta }
+    invalidateCache()
+    saveState()
+    persistToStorage()
   }
 
   return {
@@ -430,6 +538,11 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     normalizeColumn,
     clipColumn,
     encodeColumn,
+    replaceNanValues,
+    removeOutliers,
+    namedVersions,
+    saveNamedVersion,
+    restoreNamedVersion,
     clear,
     canUndo,
     canRedo,

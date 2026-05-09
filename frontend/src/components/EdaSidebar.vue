@@ -2,6 +2,9 @@
 import { ref, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
+import { analyzeOutliers } from '@/utils/outlierDetection'
+import { guessTargetVariable } from '@/utils/targetGuess'
+import { generateEdaReport } from '@/utils/edaReport'
 
 const props = defineProps({
   describeData: { type: Array, default: () => [] },
@@ -11,6 +14,32 @@ const props = defineProps({
   targetVariable: { type: String, default: null },
 })
 
+const isCollapsed = ref(false)
+const activeSection = ref(null)
+
+const authStore = useAuthStore()
+const router = useRouter()
+
+const showExportModal = ref(false)
+
+function handleExport() {
+  if (!authStore.isAuthenticated) {
+    // Save current workspace URL to return after registration
+    localStorage.setItem('eda_pending_action', 'export')
+    localStorage.setItem('eda_return_url', window.location.pathname)
+    alert('Для экспорта датасета необходимо зарегистрироваться в системе')
+    router.push('/register')
+    return
+  }
+  showExportModal.value = true
+}
+
+function handleExportFormat(format) {
+  showExportModal.value = false
+  emit('export', format)
+}
+
+// ─── Tool definitions ──────────────────────────────────────────
 const emit = defineEmits([
   'export',
   'fill-nulls',
@@ -21,33 +50,24 @@ const emit = defineEmits([
   'encode-column',
   'set-target',
   'open-chart',
+  'replace-nan-values',
+  'remove-outliers',
+  'save-version',
+  'restore-version',
 ])
 
-const isCollapsed = ref(false)
-const activeSection = ref(null)
-
-const authStore = useAuthStore()
-const router = useRouter()
-
-function handleExport() {
-  if (!authStore.isAuthenticated) {
-    alert('Для экспорта датасета необходимо зарегистрироваться в системе')
-    router.push('/register')
-    return
-  }
-  emit('export')
-}
-
-// ─── Tool definitions ──────────────────────────────────────────
 const tools = [
   { id: 'describe', label: 'Describe', icon: 'M4 6h16M4 12h8M4 18h16' },
   { id: 'nulls', label: 'Пропуски', icon: 'M12 8v4m0 4h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z' },
+  { id: 'nan-values', label: 'Строковые NaN', icon: 'M12 9v2m0 4h.01M5.07 19H19a2 2 0 001.75-2.95L13.75 4a2 2 0 00-3.5 0L3.32 16.05A2 2 0 005.07 19z' },
+  { id: 'outliers', label: 'Выбросы', icon: 'M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01' },
   { id: 'duplicates', label: 'Дубликаты', icon: 'M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2M9 2h6v4H9z' },
   { id: 'types', label: 'Типы данных', icon: 'M7 7h10v10H7zM3 3l4 4M17 3l-4 4M3 21l4-4M17 21l-4-4' },
   { id: 'normalize', label: 'Нормализация', icon: 'M22 12h-4l-3 9L9 3l-3 9H2' },
   { id: 'clip', label: 'Обрезка значений', icon: 'M6 2v14a2 2 0 0 0 2 2h14 M18 22V8a2 2 0 0 0-2-2H2' },
   { id: 'encode', label: 'Кодирование', icon: 'M7 20l4-16m2 16l4-16M6 9h14M4 15h14' },
   { id: 'target', label: 'Целевая переменная', icon: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 14a4 4 0 1 1 0-8 4 4 0 0 1 0 8z' },
+  { id: 'versions', label: 'Версии', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
 ]
 
 const charts = [
@@ -101,8 +121,47 @@ function pandasType(col) {
   return 'object'
 }
 
+/** Returns a consistent CSS-friendly type name for badge coloring */
+function displayType(col) {
+  const t = props.columnTypes[col]
+  if (t === 'number') return 'number'
+  if (t === 'integer') return 'integer'
+  if (t === 'boolean') return 'boolean'
+  return 'object' // string, mixed, empty → all shown as 'object'
+}
+
 function handleChangeType(col, newType) {
+  // Warn when converting object column to int/float
+  const currentType = props.columnTypes[col]
+  if ((currentType === 'string' || currentType === 'mixed' || currentType === 'object') &&
+      (newType === 'int64' || newType === 'float64')) {
+    const confirmed = confirm(
+      `⚠️ Внимание: столбец «${col}» содержит текстовые значения.\n\n` +
+      `При конвертации в ${newType} нечисловые значения станут пустыми (NaN).\n\n` +
+      `Продолжить?`
+    )
+    if (!confirmed) return
+  }
   emit('change-type', col, newType)
+}
+
+// ─── Custom NaN values ────────────────────────────────────────
+const nanKeywords = ref({})
+const defaultNanKeywords = 'NaN, None, NA, N/A, null, -, --'
+
+function initNanKeywords() {
+  props.columns.forEach(c => {
+    if (!nanKeywords.value[c]) nanKeywords.value[c] = ''
+  })
+}
+initNanKeywords()
+
+function handleReplaceNanValues(col) {
+  const raw = nanKeywords.value[col] || defaultNanKeywords
+  const keywords = raw.split(',').map(k => k.trim()).filter(k => k.length > 0)
+  if (keywords.length === 0) return
+  emit('replace-nan-values', col, keywords)
+  nanKeywords.value[col] = ''
 }
 
 // ─── Normalize ─────────────────────────────────────────────────
@@ -149,6 +208,53 @@ function handleSetTarget(val) {
   localTarget.value = v
   emit('set-target', v)
 }
+
+// Auto-detect target variable
+const targetGuessResult = computed(() => {
+  if (props.columns.length === 0 || props.rows.length === 0) return null
+  return guessTargetVariable(props.columns, props.rows, props.columnTypes)
+})
+
+function applyTargetGuess() {
+  if (targetGuessResult.value && targetGuessResult.value.column) {
+    handleSetTarget(targetGuessResult.value.column)
+  }
+}
+
+// ─── Outliers ───────────────────────────────────────────────
+const outlierAnalysis = computed(() => {
+  return numericColumns.value.map(col => analyzeOutliers(props.rows, col))
+})
+
+function handleRemoveOutliers(col, method) {
+  emit('remove-outliers', col, method)
+}
+
+// ─── EDA Report ─────────────────────────────────────────────
+function handleGenerateReport() {
+  generateEdaReport(
+    'dataset',
+    props.columns,
+    props.rows,
+    props.columnTypes,
+    props.targetVariable,
+  )
+}
+
+// ─── Versions ───────────────────────────────────────────────
+const versionName = ref('')
+
+function handleSaveVersion() {
+  const name = versionName.value.trim() || `v${new Date().toLocaleString('ru-RU')}`
+  emit('save-version', name)
+  versionName.value = ''
+}
+
+function handleRestoreVersion(idx) {
+  if (confirm('Восстановить эту версию? Текущие изменения будут потеряны.')) {
+    emit('restore-version', idx)
+  }
+}
 </script>
 
 <template>
@@ -178,7 +284,7 @@ function handleSetTarget(val) {
             <div v-for="d in describeData" :key="d.column" class="stat-card">
               <div class="stat-card__header">
                 <span class="stat-card__name">{{ d.column }}</span>
-                <span class="stat-card__type" :class="'type--' + d.type">{{ d.type === 'number' ? 'float64' : d.type === 'integer' ? 'int64' : 'object' }}</span>
+                <span class="stat-card__type" :class="'type--' + displayType(d.column)">{{ d.type === 'number' ? 'float64' : d.type === 'integer' ? 'int64' : 'object' }}</span>
               </div>
               <div class="stat-card__body">
                 <div class="stat-row"><span>Non-null</span><span>{{ d.nonNull?.toLocaleString() }}</span></div>
@@ -196,6 +302,68 @@ function handleSetTarget(val) {
                     <span>{{ tv.count }}</span>
                   </div>
                 </template>
+              </div>
+            </div>
+          </div>
+
+          <!-- ═══ CUSTOM NaN VALUES ═══ -->
+          <div v-if="activeSection === 'nan-values' && tool.id === 'nan-values'" class="tool-panel">
+            <p class="tool-panel__hint">
+              Укажите слова, которые нужно считать пропусками (через запятую).
+              По умолчанию: NaN, None, NA, N/A, null, -, --
+            </p>
+            <div v-for="col in columns" :key="col" class="nan-card">
+              <div class="nan-card__header">
+                <span class="nan-card__name">{{ col }}</span>
+              </div>
+              <div class="nan-card__body">
+                <input
+                  type="text"
+                  class="tool-panel__select"
+                  v-model="nanKeywords[col]"
+                  :placeholder="defaultNanKeywords"
+                />
+                <button class="act-btn" @click="handleReplaceNanValues(col)">Заменить</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ═══ OUTLIERS ═══ -->
+          <div v-if="activeSection === 'outliers' && tool.id === 'outliers'" class="tool-panel">
+            <div v-if="numericColumns.length === 0" class="tool-panel__empty">
+              Нет числовых столбцов
+            </div>
+            <div v-for="oa in outlierAnalysis" :key="oa.column" class="outlier-card">
+              <div class="outlier-card__header">
+                <span class="outlier-card__name">{{ oa.column }}</span>
+              </div>
+              <div class="outlier-card__body">
+                <div class="outlier-method">
+                  <span class="outlier-label">IQR:</span>
+                  <span class="outlier-count" :class="{ 'has-outliers': oa.iqr.count > 0 }">
+                    {{ oa.iqr.count }} выбр. ({{ oa.iqr.percent }}%)
+                  </span>
+                  <button v-if="oa.iqr.count > 0" class="act-btn act-btn--danger" @click="handleRemoveOutliers(oa.column, 'iqr')" title="Удалить выбросы IQR">Удалить</button>
+                </div>
+                <div class="outlier-detail">
+                  <span>Q1: {{ oa.iqr.q1 }}</span>
+                  <span>Q3: {{ oa.iqr.q3 }}</span>
+                  <span>IQR: {{ oa.iqr.iqr }}</span>
+                </div>
+                <div class="outlier-detail">
+                  <span>Границы: [{{ oa.iqr.lower }}, {{ oa.iqr.upper }}]</span>
+                </div>
+                <div class="outlier-method" style="margin-top:4px">
+                  <span class="outlier-label">Z-score (&gt;3σ):</span>
+                  <span class="outlier-count" :class="{ 'has-outliers': oa.zscore.count > 0 }">
+                    {{ oa.zscore.count }} выбр. ({{ oa.zscore.percent }}%)
+                  </span>
+                  <button v-if="oa.zscore.count > 0" class="act-btn act-btn--danger" @click="handleRemoveOutliers(oa.column, 'zscore')" title="Удалить выбросы Z-score">Удалить</button>
+                </div>
+                <div class="outlier-detail">
+                  <span>μ: {{ oa.zscore.mean }}</span>
+                  <span>σ: {{ oa.zscore.std }}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -305,9 +473,38 @@ function handleSetTarget(val) {
               <option value="">— не выбрана —</option>
               <option v-for="col in columns" :key="col" :value="col">{{ col }}</option>
             </select>
+
+            <!-- Auto-detection suggestion -->
+            <div v-if="targetGuessResult && targetGuessResult.column && !targetVariable" class="target-guess">
+              <div class="target-guess__header">
+                <span class="target-guess__icon">🤖</span>
+                <span class="target-guess__title">Предположение</span>
+                <span class="target-guess__badge" :class="'guess--' + targetGuessResult.confidence">
+                  {{ targetGuessResult.confidence === 'high' ? 'высокая' : targetGuessResult.confidence === 'medium' ? 'средняя' : 'низкая' }} уверенность
+                </span>
+              </div>
+              <p class="target-guess__col">Столбец: <strong>{{ targetGuessResult.column }}</strong></p>
+              <ul class="target-guess__reasons">
+                <li v-for="(r, i) in targetGuessResult.reasons" :key="i">{{ r }}</li>
+              </ul>
+              <button class="act-btn act-btn--wide" @click="applyTargetGuess">Применить предположение</button>
+            </div>
+
             <p v-if="targetVariable" class="tool-panel__target-note">
               Столбец <strong>{{ targetVariable }}</strong> помечен как целевая переменная
             </p>
+          </div>
+
+          <!-- ═══ VERSIONS ═══ -->
+          <div v-if="activeSection === 'versions' && tool.id === 'versions'" class="tool-panel">
+            <p class="tool-panel__hint">Сохраняйте версии датасета для отката к любому состоянию.</p>
+            <div class="version-save">
+              <input type="text" class="tool-panel__select" v-model="versionName" placeholder="Название версии (опционально)" />
+              <button class="act-btn act-btn--wide" @click="handleSaveVersion" style="margin-top:4px">💾 Сохранить версию</button>
+            </div>
+            <div class="version-list">
+              <slot name="versions"></slot>
+            </div>
           </div>
         </div>
       </div>
@@ -324,14 +521,49 @@ function handleSetTarget(val) {
         </div>
       </div>
 
+      <!-- Report button -->
+      <div class="sidebar__divider"></div>
+      <div class="sidebar__section" style="padding-bottom:var(--space-2)">
+        <button class="act-btn act-btn--wide report-btn" @click="handleGenerateReport">
+          📊 Сгенерировать EDA-отчёт (HTML)
+        </button>
+      </div>
+
       <!-- Export -->
       <div class="sidebar__export">
         <button class="btn--accent-export" @click="handleExport">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Экспорт CSV
+          Экспорт датасета
         </button>
       </div>
     </div>
+
+    <!-- Export format modal -->
+    <Teleport to="body">
+      <div v-if="showExportModal" class="export-modal-overlay" @click.self="showExportModal = false">
+        <div class="export-modal">
+          <h3 class="export-modal__title">Выберите формат экспорта</h3>
+          <div class="export-modal__options">
+            <button class="export-modal__btn" @click="handleExportFormat('csv')">
+              <span class="export-modal__icon">📄</span>
+              <span class="export-modal__label">CSV</span>
+              <span class="export-modal__desc">Comma-separated values</span>
+            </button>
+            <button class="export-modal__btn" @click="handleExportFormat('json')">
+              <span class="export-modal__icon">📋</span>
+              <span class="export-modal__label">JSON</span>
+              <span class="export-modal__desc">JavaScript Object Notation</span>
+            </button>
+            <button class="export-modal__btn" @click="handleExportFormat('parquet')">
+              <span class="export-modal__icon">📦</span>
+              <span class="export-modal__label">Parquet</span>
+              <span class="export-modal__desc">Apache Parquet (columnar)</span>
+            </button>
+          </div>
+          <button class="export-modal__cancel" @click="showExportModal = false">Отмена</button>
+        </div>
+      </div>
+    </Teleport>
   </aside>
 </template>
 
@@ -443,6 +675,7 @@ function handleSetTarget(val) {
 .stat-card__name { font-size: 11px; font-weight: 600; color: var(--color-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .stat-card__type { font-size: 9px; font-weight: 500; padding: 1px 5px; border-radius: var(--radius-full); }
 .type--number, .type--integer { background: rgba(79, 110, 247, 0.1); color: #4f6ef7; }
+.type--object { background: rgba(34, 197, 94, 0.1); color: #22c55e; }
 .type--string { background: rgba(34, 197, 94, 0.1); color: #22c55e; }
 .type--boolean { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
 .type--mixed { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
@@ -492,4 +725,85 @@ function handleSetTarget(val) {
   cursor: pointer; border: none; font-family: var(--font-family);
 }
 .btn--accent-export:hover { filter: brightness(1.1); box-shadow: 0 4px 14px rgba(79, 110, 247, 0.4); transform: translateY(-1px); }
+
+/* NaN cards */
+.nan-card { padding: var(--space-2) 0; border-bottom: 1px solid var(--color-border-light); }
+.nan-card:last-child { border-bottom: none; }
+.nan-card__header { margin-bottom: 4px; }
+.nan-card__name { font-size: 11px; font-weight: 600; color: var(--color-text-primary); }
+.nan-card__body { display: flex; gap: 4px; align-items: center; }
+.nan-card__body input { flex: 1; padding: 4px 8px; font-size: 10px; }
+
+/* Export modal */
+.export-modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999;
+  display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(4px);
+}
+.export-modal {
+  background: var(--color-surface); border-radius: var(--radius-lg);
+  padding: var(--space-8); width: 360px; max-width: 90vw;
+  box-shadow: var(--shadow-xl); border: 1px solid var(--color-border);
+}
+.export-modal__title {
+  font-size: var(--font-size-lg); font-weight: 700;
+  color: var(--color-text-primary); margin-bottom: var(--space-5); text-align: center;
+}
+.export-modal__options { display: flex; flex-direction: column; gap: var(--space-3); }
+.export-modal__btn {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border); border-radius: var(--radius-md);
+  background: var(--color-bg-primary); cursor: pointer;
+  transition: all var(--transition-fast); font-family: var(--font-family);
+}
+.export-modal__btn:hover {
+  border-color: var(--color-accent); background: var(--color-accent-light);
+  transform: translateX(4px);
+}
+.export-modal__icon { font-size: 1.4rem; }
+.export-modal__label { font-size: var(--font-size-base); font-weight: 600; color: var(--color-text-primary); }
+.export-modal__desc { font-size: var(--font-size-xs); color: var(--color-text-tertiary); margin-left: auto; }
+.export-modal__cancel {
+  width: 100%; margin-top: var(--space-4); padding: var(--space-2);
+  font-size: var(--font-size-sm); color: var(--color-text-secondary);
+  background: none; border: none; cursor: pointer; font-family: var(--font-family);
+}
+.export-modal__cancel:hover { color: var(--color-text-primary); }
+
+/* Outlier cards */
+.outlier-card { padding: var(--space-2) 0; border-bottom: 1px solid var(--color-border-light); }
+.outlier-card:last-child { border-bottom: none; }
+.outlier-card__header { margin-bottom: 4px; }
+.outlier-card__name { font-size: 11px; font-weight: 600; color: var(--color-text-primary); }
+.outlier-card__body { padding: 2px 0; }
+.outlier-method { display: flex; align-items: center; gap: 4px; font-size: 10px; margin-bottom: 2px; }
+.outlier-label { font-weight: 600; color: var(--color-text-secondary); min-width: 55px; }
+.outlier-count { color: var(--color-success); font-weight: 500; flex: 1; }
+.outlier-count.has-outliers { color: var(--color-warning); }
+.outlier-detail { display: flex; gap: 8px; font-size: 9px; color: var(--color-text-tertiary); margin-bottom: 2px; padding-left: 4px; }
+
+/* Target guess */
+.target-guess { margin-top: var(--space-3); padding: var(--space-2); background: var(--color-accent-light, rgba(79,110,247,0.05)); border-radius: var(--radius-sm); border: 1px dashed var(--color-accent, #4f6ef7); }
+.target-guess__header { display: flex; align-items: center; gap: 4px; margin-bottom: 4px; }
+.target-guess__icon { font-size: 14px; }
+.target-guess__title { font-size: 11px; font-weight: 600; color: var(--color-text-primary); }
+.target-guess__badge { font-size: 9px; font-weight: 600; padding: 1px 6px; border-radius: var(--radius-full); margin-left: auto; }
+.guess--high { background: rgba(34,197,94,0.15); color: #22c55e; }
+.guess--medium { background: rgba(245,158,11,0.15); color: #f59e0b; }
+.guess--low { background: rgba(239,68,68,0.15); color: #ef4444; }
+.target-guess__col { font-size: 11px; color: var(--color-text-secondary); margin-bottom: 4px; }
+.target-guess__reasons { font-size: 10px; color: var(--color-text-tertiary); list-style: none; margin-bottom: 6px; }
+.target-guess__reasons li::before { content: '→ '; color: var(--color-accent); }
+
+/* Version list */
+.version-save { margin-bottom: var(--space-3); }
+.version-item { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid var(--color-border-light); font-size: 11px; }
+.version-item:last-child { border-bottom: none; }
+.version-item__name { font-weight: 500; color: var(--color-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px; }
+.version-item__meta { font-size: 9px; color: var(--color-text-tertiary); }
+
+/* Report button */
+.report-btn { padding: 8px 12px !important; font-size: 11px !important; background: var(--color-accent-light, rgba(79,110,247,0.08)) !important; border-color: var(--color-accent, #4f6ef7) !important; color: var(--color-accent, #4f6ef7) !important; font-weight: 600 !important; }
+.report-btn:hover { background: var(--color-accent, #4f6ef7) !important; color: #fff !important; }
 </style>

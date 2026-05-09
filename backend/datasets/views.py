@@ -84,6 +84,27 @@ class DatasetListCreateView(generics.ListCreateAPIView):
         try:
             ext = uploaded_file.name.rsplit('.', 1)[-1].lower()
             uploaded_file.seek(0)
+
+            if ext == 'parquet':
+                # Parquet files can't be easily read without pandas
+                # We'll store 0,0 and update later if needed
+                return 0, 0
+
+            if ext in ('xlsx', 'xls'):
+                # Excel files are primarily parsed on the frontend
+                # Try openpyxl if available
+                try:
+                    import openpyxl
+                    uploaded_file.seek(0)
+                    wb = openpyxl.load_workbook(uploaded_file, read_only=True)
+                    ws = wb.active
+                    rows = ws.max_row or 0
+                    cols = ws.max_column or 0
+                    wb.close()
+                    return max(rows - 1, 0), cols  # exclude header
+                except ImportError:
+                    return 0, 0
+            
             content = uploaded_file.read().decode('utf-8')
             uploaded_file.seek(0)
 
@@ -108,8 +129,8 @@ class DatasetListCreateView(generics.ListCreateAPIView):
             return 0, 0
 
 
-class DatasetDetailView(generics.RetrieveDestroyAPIView):
-    """GET — метаданные + ссылка для скачивания; DELETE — удалить."""
+class DatasetDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """GET — метаданные; PATCH — обновить имя; DELETE — удалить."""
     serializer_class = DatasetSerializer
     permission_classes = [permissions.IsAuthenticated]
 

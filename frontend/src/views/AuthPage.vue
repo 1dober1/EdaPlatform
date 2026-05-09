@@ -32,7 +32,21 @@ async function handleSubmit() {
     } else {
       await authStore.login(email.value, password.value)
     }
-    router.push('/dashboard')
+    
+    // Determine where to redirect after auth
+    const returnUrl = localStorage.getItem('eda_return_url')
+    localStorage.removeItem('eda_return_url')
+    
+    if (returnUrl) {
+      // Return to workspace (for register flow after export attempt)
+      router.push(returnUrl)
+    } else if (isRegister.value) {
+      // After registration, go to saved-datasets
+      router.push('/saved-datasets')
+    } else {
+      // After login, go to saved-datasets
+      router.push('/saved-datasets')
+    }
   } catch (err) {
     let msg = err.message
     try {

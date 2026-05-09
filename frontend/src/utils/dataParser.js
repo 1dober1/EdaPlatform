@@ -14,6 +14,9 @@ import Papa from 'papaparse'
 const PARSERS = {
   csv: parseCsv,
   json: parseJson,
+  parquet: parseParquet,
+  xlsx: parseExcel,
+  xls: parseExcel,
 }
 
 /**
@@ -27,8 +30,15 @@ export async function parseFile(file) {
   if (!parser) {
     throw new Error(`Формат .${ext} пока не поддерживается. Поддерживаемые: ${Object.keys(PARSERS).join(', ')}`)
   }
-  const text = await file.text()
-  const result = await parser(text)
+  
+  let content
+  if (ext === 'parquet' || ext === 'xlsx' || ext === 'xls') {
+    content = await file.arrayBuffer()
+  } else {
+    content = await file.text()
+  }
+  
+  const result = await parser(content)
   result.meta = {
     ...result.meta,
     fileName: file.name,
@@ -119,4 +129,82 @@ function parseJson(text) {
       reject(new Error('Не удалось распарсить JSON: ' + err.message))
     }
   })
+}
+
+// ─── Parquet ─────────────────────────────────────────────────
+async function parseParquet(arrayBuffer) {
+  try {
+    const { parquetMetadata, parquetRead } = await import('hyparquet')
+    
+    // Get column names from metadata
+    const metadata = parquetMetadata(arrayBuffer)
+    const columns = metadata.schema
+      .filter(s => s.name !== 'schema')  // skip root schema entry
+      .map(s => s.name)
+    
+    return new Promise((resolve, reject) => {
+      parquetRead({
+        file: arrayBuffer,
+        onComplete: (data) => {
+          // data is array of arrays — convert to array of objects
+          const rows = data.map(rowArr => {
+            const obj = {}
+            columns.forEach((col, i) => {
+              obj[col] = rowArr[i] !== undefined ? rowArr[i] : null
+            })
+            return obj
+          })
+          
+          resolve({
+            columns,
+            rows,
+            meta: {
+              totalRows: rows.length,
+              totalColumns: columns.length,
+            },
+          })
+        },
+      })
+    })
+  } catch (e) {
+    throw new Error(
+      'Не удалось прочитать Parquet файл: ' + e.message + '\n\n' +
+      'Попробуйте сконвертировать файл в CSV:\n' +
+      'import pandas as pd\n' +
+      'df = pd.read_parquet("file.parquet")\n' +
+      'df.to_csv("file.csv", index=False)'
+    )
+  }
+}
+
+// ─── Excel (xlsx / xls) ─────────────────────────────────────
+async function parseExcel(arrayBuffer) {
+  try {
+    const XLSX = await import('xlsx')
+    const workbook = XLSX.read(arrayBuffer, { type: 'array' })
+    
+    // Use first sheet
+    const sheetName = workbook.SheetNames[0]
+    const sheet = workbook.Sheets[sheetName]
+    
+    // Convert to array of objects with headers
+    const rows = XLSX.utils.sheet_to_json(sheet, { defval: null })
+    const columns = rows.length > 0 ? Object.keys(rows[0]) : []
+    
+    return {
+      columns,
+      rows,
+      meta: {
+        totalRows: rows.length,
+        totalColumns: columns.length,
+        sheetName,
+        totalSheets: workbook.SheetNames.length,
+      },
+    }
+  } catch (e) {
+    throw new Error(
+      'Не удалось прочитать Excel файл: ' + e.message + '\n\n' +
+      'Убедитесь, что файл не повреждён.'
+    )
+  }
 }
