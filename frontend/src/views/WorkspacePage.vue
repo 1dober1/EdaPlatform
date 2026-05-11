@@ -91,44 +91,50 @@ async function loadSaved(id) {
       throw new Error(`Ошибка сервера (${res.status}): ${errText.slice(0, 50)}`)
     }
 
-    let filename = `dataset_${id}.csv`
+    let filename = `dataset_${id}`
+    let ext = 'csv'
     try {
       const metaRes = await fetch(`${authStore.API_BASE}/api/datasets/${id}/`, {
         headers: { 'Authorization': `Bearer ${authStore.token}` }
       })
       if (metaRes.ok) {
         const metaData = await metaRes.json()
-        if (metaData.name) {
-          filename = metaData.name.endsWith('.csv') || metaData.name.endsWith('.json')
-            ? metaData.name
-            : metaData.name + '.csv'
+        if (metaData.name) filename = metaData.name
+        if (metaData.file) {
+          ext = metaData.file.split('.').pop().toLowerCase()
         }
       }
     } catch (e) {}
 
-    const text = await res.text()
-
-    if (filename.toLowerCase().endsWith('.json')) {
-      const parsed = JSON.parse(text)
-      const data = Array.isArray(parsed) ? parsed : [parsed]
-      const cols = data.length ? Object.keys(data[0]) : []
-      store.setData(filename, cols, data, {
-        totalRows: data.length, totalColumns: cols.length, fileSize: text.length, format: 'json'
-      }, 'saved', id)
-    } else {
-      Papa.parse(text, {
-        header: true,
-        dynamicTyping: true,
-        skipEmptyLines: true,
-        complete: (results) => {
-          store.setData(filename, results.meta.fields || [], results.data, {
-            totalRows: results.data.length,
-            totalColumns: (results.meta.fields || []).length,
-            fileSize: text.length,
-            format: 'csv'
-          }, 'saved', id)
-        }
-      })
+    try {
+      let result
+      let fileSize = 0
+      if (ext === 'parquet') {
+        const buffer = await res.arrayBuffer()
+        fileSize = buffer.byteLength
+        const { parseText } = await import('@/utils/dataParser')
+        result = await parseText(buffer, ext)
+      } else {
+        const text = await res.text()
+        fileSize = text.length
+        result = await parseText(text, ext)
+      }
+      
+      store.setData(
+        filename,
+        result.columns,
+        result.rows,
+        {
+          totalRows: result.rows.length,
+          totalColumns: result.columns.length,
+          fileSize: fileSize,
+          format: ext
+        },
+        'saved',
+        id
+      )
+    } catch (parseErr) {
+      throw new Error('Ошибка парсинга файла: ' + parseErr.message)
     }
   } catch (err) {
     errorMsg.value = err.message

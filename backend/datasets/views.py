@@ -88,6 +88,15 @@ class DatasetListCreateView(generics.ListCreateAPIView):
             uploaded_file.seek(0)
 
             if ext == 'csv':
+                content_stripped = content.strip()
+                if content_stripped.startswith('[') or content_stripped.startswith('{'):
+                    try:
+                        data = json.loads(content)
+                        rows = _extract_json_rows(data)
+                        if rows:
+                            return len(rows), len(rows[0]) if isinstance(rows[0], dict) else 0
+                    except Exception:
+                        pass
                 try:
                     dialect = csv.Sniffer().sniff(content[:2048], delimiters=',;\t|')
                     reader = csv.reader(io.StringIO(content), dialect)

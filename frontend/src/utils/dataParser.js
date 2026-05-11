@@ -47,12 +47,34 @@ function parseCsv(text) {
       skipEmptyLines: true,
       dynamicTyping: true,
       complete(results) {
+        // Fallback: if it parsed as 1 column and the content looks like JSON
+        const cols = results.meta.fields || []
+        if (cols.length === 1 && (text.trim().startsWith('[') || text.trim().startsWith('{'))) {
+          try {
+            const data = JSON.parse(text)
+            const rows = extractJsonRows(data)
+            if (rows.length > 0) {
+              const jsonCols = Object.keys(rows[0])
+              resolve({
+                columns: jsonCols,
+                rows,
+                meta: {
+                  totalRows: rows.length,
+                  totalColumns: jsonCols.length,
+                  delimiter: 'json-fallback',
+                },
+              })
+              return
+            }
+          } catch (e) {}
+        }
+        
         resolve({
-          columns: results.meta.fields || [],
+          columns: cols,
           rows: results.data,
           meta: {
             totalRows: results.data.length,
-            totalColumns: (results.meta.fields || []).length,
+            totalColumns: cols.length,
             delimiter: results.meta.delimiter,
           },
         })

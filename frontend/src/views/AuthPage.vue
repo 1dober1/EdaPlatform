@@ -44,10 +44,13 @@ async function claimWorkspaceDataset() {
       const dataset = await res.json()
       workspaceStore.datasetSource = 'saved'
       workspaceStore.datasetId = dataset.id
+      workspaceStore.saveNamedVersion('Initial Saved State')
+      return dataset.id
     }
   } catch (e) {
     console.warn('Could not claim dataset:', e)
   }
+  return null
 }
 
 async function handleSubmit() {
@@ -66,10 +69,15 @@ async function handleSubmit() {
       await authStore.login(email.value, password.value)
     }
 
-    await claimWorkspaceDataset()
+    await workspaceStore.loadFromStorage()
+    const claimedId = await claimWorkspaceDataset()
 
-    const returnUrl = localStorage.getItem('eda_return_url')
+    let returnUrl = localStorage.getItem('eda_return_url')
     localStorage.removeItem('eda_return_url')
+
+    if (claimedId && returnUrl && returnUrl.includes('/workspace/')) {
+      returnUrl = `/workspace/saved/${claimedId}`
+    }
 
     if (returnUrl) {
       router.push(returnUrl)

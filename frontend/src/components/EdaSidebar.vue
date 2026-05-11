@@ -256,6 +256,8 @@ function handleRestoreVersion(id) {
     emit('restore-version', id)
   }
 }
+
+
 </script>
 
 <template>
