@@ -1,14 +1,5 @@
-/**
- * dataStats.js — Вычисление базовых статистик на фронтенде.
- * Универсальный модуль: работает с любым датасетом любого размера.
- */
 
-/**
- * Определяет тип колонки по значениям.
- * @param {object[]} rows
- * @param {string} col
- * @returns {'number' | 'integer' | 'string' | 'boolean' | 'mixed' | 'empty'}
- */
+
 export function inferColumnType(rows, col) {
   let numCount = 0
   let intCount = 0
@@ -42,9 +33,6 @@ export function inferColumnType(rows, col) {
   return 'mixed'
 }
 
-/**
- * Вычисляет describe-статистику для одной колонки.
- */
 export function describeColumn(rows, col) {
   const type = inferColumnType(rows, col)
   const totalCount = rows.length
@@ -93,7 +81,7 @@ export function describeColumn(rows, col) {
     }
   }
 
-  // String / boolean / mixed
+  
   const uniques = new Set(values)
   return {
     ...base,
@@ -102,16 +90,10 @@ export function describeColumn(rows, col) {
   }
 }
 
-/**
- * Вычисляет describe для всех колонок.
- */
 export function describeAll(columns, rows) {
   return columns.map(col => describeColumn(rows, col))
 }
 
-/**
- * Возвращает топ-N частых значений.
- */
 function getTopValues(values, n) {
   const freq = {}
   for (const v of values) {

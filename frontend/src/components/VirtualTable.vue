@@ -48,7 +48,6 @@ const visibleRows = computed(() => {
   return props.rows.slice(visibleStart.value, visibleEnd.value)
 })
 
-// Row counter — rows visible on screen (without buffer)
 const visibleOnScreen = computed(() => {
   const onScreenStart = Math.floor(scrollTop.value / ROW_HEIGHT)
   const onScreenEnd = Math.min(
@@ -58,7 +57,6 @@ const visibleOnScreen = computed(() => {
   return { from: onScreenStart + 1, to: onScreenEnd }
 })
 
-// Pandas-style type mapping
 function pandasType(col) {
   const t = props.columnTypes[col]
   if (t === 'number') return 'float64'
@@ -68,7 +66,6 @@ function pandasType(col) {
   return 'object'
 }
 
-// Null count for column (cached)
 const nullCounts = computed(() => {
   const result = {}
   for (const col of props.columns) {
@@ -129,7 +126,7 @@ onUnmounted(() => {
 <template>
   <div class="vtable-wrapper">
     <div class="vtable-scroll" ref="scrollContainerRef" @scroll="onScroll">
-      <!-- Top spacer pushes content down without transform -->
+      
       <div :style="{ height: visibleStart * ROW_HEIGHT + 'px' }"></div>
       
       <table class="vtable">
@@ -185,7 +182,7 @@ onUnmounted(() => {
         </tbody>
       </table>
 
-      <!-- Bottom spacer fills remaining height -->
+      
       <div :style="{ height: Math.max(0, (totalRows - visibleEnd) * ROW_HEIGHT) + 'px' }"></div>
     </div>
 

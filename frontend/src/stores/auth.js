@@ -3,11 +3,13 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import NProgress from 'nprogress'
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+
 export const useAuthStore = defineStore('auth', () => {
   const token = ref(localStorage.getItem('eda_token') || null)
   const refreshToken = ref(localStorage.getItem('eda_refresh') || null)
   const user = ref(JSON.parse(localStorage.getItem('eda_user') || 'null'))
-  
+
   const isAuthenticated = computed(() => !!token.value)
   const router = useRouter()
 
@@ -26,7 +28,7 @@ export const useAuthStore = defineStore('auth', () => {
   async function fetchMe() {
     if (!token.value) return
     try {
-      const res = await fetch('http://localhost:8000/api/auth/me/', {
+      const res = await fetch(`${API_BASE}/api/auth/me/`, {
         headers: { 'Authorization': `Bearer ${token.value}` }
       })
       if (res.ok) {
@@ -45,12 +47,23 @@ export const useAuthStore = defineStore('auth', () => {
     NProgress.start()
     try {
       const username = email.split('@')[0]
-      const req = await fetch('http://localhost:8000/api/auth/login/', {
+      const req = await fetch(`${API_BASE}/api/auth/login/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })
       })
-      if (!req.ok) throw new Error('Неверные учетные данные')
+      if (!req.ok) {
+        const emailPrefix = email.split('@')[0]
+        const searchReq = await fetch(`${API_BASE}/api/auth/login/`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: emailPrefix, password })
+        })
+        if (!searchReq.ok) throw new Error('Неверные учетные данные')
+        const data = await searchReq.json()
+        setAuth(data)
+        return true
+      }
       const data = await req.json()
       setAuth(data)
       return true
@@ -63,7 +76,7 @@ export const useAuthStore = defineStore('auth', () => {
     NProgress.start()
     try {
       const username = email.split('@')[0]
-      const req = await fetch('http://localhost:8000/api/auth/register/', {
+      const req = await fetch(`${API_BASE}/api/auth/register/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, username, password, password2: passwordConfirm })
@@ -72,9 +85,16 @@ export const useAuthStore = defineStore('auth', () => {
         const errorData = await req.json()
         throw new Error(JSON.stringify(errorData))
       }
-      
-      // Auto login after register
-      await login(email, password)
+
+      const regData = await req.json()
+      const loginReq = await fetch(`${API_BASE}/api/auth/login/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: regData.username, password })
+      })
+      if (!loginReq.ok) throw new Error('Не удалось войти после регистрации')
+      const loginData = await loginReq.json()
+      setAuth(loginData)
       return true
     } finally {
       NProgress.done()
@@ -92,6 +112,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   return {
-    token, user, isAuthenticated, login, register, logout, fetchMe
+    token, user, isAuthenticated, login, register, logout, fetchMe,
+    API_BASE,
   }
 })

@@ -4,13 +4,11 @@ from django.contrib.auth.models import User
 
 from .serializers import RegisterSerializer, UserSerializer
 
-
 class RegisterView(generics.CreateAPIView):
     """POST /api/auth/register/ — создание нового пользователя."""
     queryset = User.objects.all()
     serializer_class = RegisterSerializer
     permission_classes = [permissions.AllowAny]
-
 
 class MeView(generics.RetrieveAPIView):
     """GET /api/auth/me/ — профиль текущего пользователя."""

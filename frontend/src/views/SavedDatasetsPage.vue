@@ -14,7 +14,6 @@ onMounted(async () => {
     router.push('/login')
     return
   }
-  
   await fetchDatasets()
 })
 
@@ -22,7 +21,7 @@ async function fetchDatasets() {
   isLoading.value = true
   NProgress.start()
   try {
-    const res = await fetch('http://localhost:8000/api/datasets/', {
+    const res = await fetch(`${authStore.API_BASE}/api/datasets/`, {
       headers: { 'Authorization': `Bearer ${authStore.token}` }
     })
     if (res.ok) {
@@ -40,11 +39,11 @@ async function handleDelete(id) {
   if (!confirm('Удалить этот датасет безвозвратно?')) return
 
   try {
-    const res = await fetch(`http://localhost:8000/api/datasets/${id}/`, {
+    const res = await fetch(`${authStore.API_BASE}/api/datasets/${id}/`, {
       method: 'DELETE',
       headers: { 'Authorization': `Bearer ${authStore.token}` }
     })
-    if (res.ok) {
+    if (res.ok || res.status === 204) {
       datasets.value = datasets.value.filter(d => d.id !== id)
     }
   } catch (e) {
@@ -58,7 +57,7 @@ function openWorkspace(id) {
 
 async function handleDownload(dataset) {
   try {
-    const res = await fetch(`http://localhost:8000/api/datasets/${dataset.id}/download/`, {
+    const res = await fetch(`${authStore.API_BASE}/api/datasets/${dataset.id}/download/`, {
       headers: { 'Authorization': `Bearer ${authStore.token}` }
     })
     if (!res.ok) throw new Error('Download failed')
@@ -72,7 +71,6 @@ async function handleDownload(dataset) {
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
   } catch (e) {
-    console.error('Download error:', e)
     alert('Ошибка при скачивании файла')
   }
 }
@@ -96,7 +94,7 @@ async function handleDownload(dataset) {
     <div v-else-if="datasets.length === 0" class="empty-state">
       <div class="empty-icon">📂</div>
       <h3>У вас пока нет сохраненных датасетов</h3>
-      <p>Загрузите свой первый файл для анализа Данные будут надежно сохранены в вашем профиле.</p>
+      <p>Загрузите свой первый файл для анализа. Данные будут надежно сохранены в вашем профиле.</p>
       <router-link to="/dashboard" class="btn btn--primary mt-4">Загрузить данные</router-link>
     </div>
 
@@ -162,7 +160,6 @@ async function handleDownload(dataset) {
   gap: var(--space-6);
 }
 
-/* CARDS */
 .dataset-card {
   display: flex;
   gap: var(--space-4);
@@ -262,7 +259,6 @@ async function handleDownload(dataset) {
   border-color: var(--color-error);
 }
 
-/* EMPTY STATE */
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -296,7 +292,6 @@ async function handleDownload(dataset) {
   margin-top: var(--space-6);
 }
 
-/* LOADING */
 .loading-state {
   display: flex;
   flex-direction: column;

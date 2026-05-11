@@ -1,20 +1,19 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+
 const stats = ref({ users: 0, datasets: 0, charts: 0 })
 
 onMounted(async () => {
   try {
-    const res = await fetch('http://localhost:8000/api/datasets/stats/')
+    const res = await fetch(`${API_BASE}/api/datasets/stats/`)
     if (res.ok) {
       stats.value = await res.json()
     }
-  } catch (e) {
-    console.warn('Could not load stats:', e)
-  }
+  } catch (e) {}
 })
 
-/* ---- Features list ---- */
 const features = [
   {
     icon: 'table',
@@ -42,7 +41,7 @@ const features = [
 
 <template>
   <main class="landing">
-    <!-- ========== Hero ========== -->
+    
     <section class="hero">
       <div class="hero__bg-blobs">
         <div class="hero__blob hero__blob--1"></div>
@@ -95,25 +94,25 @@ const features = [
       </div>
     </section>
 
-    <!-- ========== Features ========== -->
+    
     <section class="features container">
       <h2 class="features__heading">Возможности платформы</h2>
       <div class="features__grid">
         <article v-for="f in features" :key="f.title" class="feature-card">
           <div class="feature-card__icon">
-            <!-- table -->
+            
             <svg v-if="f.icon === 'table'" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
               <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/>
             </svg>
-            <!-- chart -->
+            
             <svg v-if="f.icon === 'chart'" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
               <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
             </svg>
-            <!-- clean -->
+            
             <svg v-if="f.icon === 'clean'" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
               <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
             </svg>
-            <!-- export -->
+            
             <svg v-if="f.icon === 'export'" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
             </svg>
@@ -124,7 +123,7 @@ const features = [
       </div>
     </section>
 
-    <!-- ========== CTA ========== -->
+    
     <section class="cta container">
       <div class="cta__card">
         <h2 class="cta__heading">Готовы попробовать?</h2>
@@ -141,7 +140,7 @@ const features = [
       </div>
     </section>
 
-    <!-- ========== Footer ========== -->
+    
     <footer class="landing-footer">
       <div class="container">
         <span class="landing-footer__text">© 2026 EDA Platform</span>
@@ -151,15 +150,11 @@ const features = [
 </template>
 
 <style scoped>
-/* ================================================================
-   Landing page styles — grid-based layout
-   ================================================================ */
 
 .landing {
   overflow-x: hidden;
 }
 
-/* ---------- Hero ---------- */
 .hero {
   position: relative;
   display: grid;
@@ -288,7 +283,6 @@ const features = [
   justify-content: center;
 }
 
-/* Hero Buttons */
 .btn--hero-outline,
 .btn--hero-primary {
   display: inline-flex;
@@ -328,7 +322,6 @@ const features = [
   transform: translateY(-2px);
 }
 
-/* ---------- Features ---------- */
 .features {
   padding: var(--space-16) 0;
 }
@@ -385,7 +378,6 @@ const features = [
   line-height: 1.6;
 }
 
-/* ---------- CTA ---------- */
 .cta {
   padding: var(--space-16) 0;
 }
@@ -421,7 +413,6 @@ const features = [
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
 }
 
-/* ---------- Footer ---------- */
 .landing-footer {
   padding: var(--space-8) 0;
   border-top: 1px solid var(--color-border-light);
@@ -433,7 +424,6 @@ const features = [
   color: var(--color-text-tertiary);
 }
 
-/* ---------- Responsive ---------- */
 @media (max-width: 1024px) {
   .features__grid {
     grid-template-columns: repeat(2, 1fr);

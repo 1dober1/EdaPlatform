@@ -1,12 +1,5 @@
-/**
- * outlierDetection.js — Обнаружение выбросов IQR и Z-score.
- */
 
-/**
- * Detect outliers using IQR method.
- * @param {number[]} values - array of numeric values (no nulls)
- * @returns {{ lower: number, upper: number, outlierIndices: number[] }}
- */
+
 export function detectOutliersIQR(values) {
   const sorted = [...values].sort((a, b) => a - b)
   const n = sorted.length
@@ -26,12 +19,6 @@ export function detectOutliersIQR(values) {
   return { lower, upper, outlierIndices, q1, q3, iqr }
 }
 
-/**
- * Detect outliers using Z-score method.
- * @param {number[]} values - array of numeric values (no nulls)
- * @param {number} threshold - Z-score threshold (default 3.0)
- * @returns {{ mean: number, std: number, outlierIndices: number[] }}
- */
 export function detectOutliersZScore(values, threshold = 3.0) {
   const n = values.length
   if (n < 2) return { mean: 0, std: 0, outlierIndices: [], threshold }
@@ -48,12 +35,6 @@ export function detectOutliersZScore(values, threshold = 3.0) {
   return { mean, std, outlierIndices, threshold }
 }
 
-/**
- * Full outlier analysis for a column in the dataset.
- * @param {object[]} rows
- * @param {string} col
- * @returns {object}
- */
 export function analyzeOutliers(rows, col) {
   const values = []
   const validIndices = []
@@ -89,7 +70,7 @@ export function analyzeOutliers(rows, col) {
       upper: Math.round(iqrResult.upper * 100) / 100,
       count: iqrResult.outlierIndices.length,
       percent: ((iqrResult.outlierIndices.length / values.length) * 100).toFixed(1),
-      // Map back to original row indices
+      
       indices: iqrResult.outlierIndices.map(i => validIndices[i]),
     },
     zscore: {

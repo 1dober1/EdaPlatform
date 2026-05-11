@@ -30,7 +30,6 @@ onMounted(async () => {
   const restored = await store.loadFromStorage()
   if (restored && store.datasetSource === source && String(store.datasetId) === String(id)) {
     isLoading.value = false
-    // Check if there is a pending export action after registration
     checkPendingAction()
     return
   }
@@ -52,7 +51,6 @@ function checkPendingAction() {
   const pending = localStorage.getItem('eda_pending_action')
   if (pending === 'export' && authStore.isAuthenticated) {
     localStorage.removeItem('eda_pending_action')
-    // Give the user a moment to see the workspace, then prompt export
     setTimeout(() => {
       alert('Вы успешно авторизовались! Теперь вы можете экспортировать датасет.')
     }, 500)
@@ -63,7 +61,7 @@ async function loadDemo(slug) {
   try {
     isLoading.value = true
     errorMsg.value = null
-    const res = await fetch(`http://localhost:8000/api/datasets/demo/${slug}/`)
+    const res = await fetch(`${authStore.API_BASE}/api/datasets/demo/${slug}/`)
     if (!res.ok) throw new Error('Не удалось загрузить демо-датасет')
     const json = await res.json()
 
@@ -80,15 +78,12 @@ async function loadDemo(slug) {
   }
 }
 
-// ─── Event handlers for sidebar ────────────────────────────────
-
-
 async function loadSaved(id) {
   isLoading.value = true
   if (window.NProgress) window.NProgress.start()
-  
+
   try {
-    const res = await fetch(`http://localhost:8000/api/datasets/${id}/download/`, {
+    const res = await fetch(`${authStore.API_BASE}/api/datasets/${id}/download/`, {
       headers: { 'Authorization': `Bearer ${authStore.token}` }
     })
     if (!res.ok) {
@@ -98,21 +93,21 @@ async function loadSaved(id) {
 
     let filename = `dataset_${id}.csv`
     try {
-      const metaRes = await fetch(`http://localhost:8000/api/datasets/${id}/`, {
+      const metaRes = await fetch(`${authStore.API_BASE}/api/datasets/${id}/`, {
         headers: { 'Authorization': `Bearer ${authStore.token}` }
       })
       if (metaRes.ok) {
         const metaData = await metaRes.json()
         if (metaData.name) {
-          filename = metaData.name.endsWith('.csv') || metaData.name.endsWith('.json') 
-            ? metaData.name 
+          filename = metaData.name.endsWith('.csv') || metaData.name.endsWith('.json')
+            ? metaData.name
             : metaData.name + '.csv'
         }
       }
     } catch (e) {}
-    
+
     const text = await res.text()
-    
+
     if (filename.toLowerCase().endsWith('.json')) {
       const parsed = JSON.parse(text)
       const data = Array.isArray(parsed) ? parsed : [parsed]
@@ -183,16 +178,14 @@ function handleOpenChart(type) {
   chartModalOpen.value = true
 }
 
-// Replace string-encoded NaN values with real null
 function handleReplaceNanValues(col, keywords) {
   store.replaceNanValues(col, keywords)
 }
 
-// Multi-format export
 function handleExport(format = 'csv') {
   const baseName = store.datasetName || 'export'
   let blob, ext
-  
+
   if (format === 'csv') {
     const csv = Papa.unparse(store.rows)
     blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
@@ -207,7 +200,7 @@ function handleExport(format = 'csv') {
   } else {
     return
   }
-  
+
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
@@ -216,12 +209,10 @@ function handleExport(format = 'csv') {
   URL.revokeObjectURL(url)
 }
 
-// Outlier removal
 function handleRemoveOutliers(col, method) {
   store.removeOutliers(col, method)
 }
 
-// Versioning
 function handleSaveVersion(name) {
   store.saveNamedVersion(name)
   alert(`Версия «${name}» сохранена`)
@@ -231,11 +222,10 @@ function handleRestoreVersion(idx) {
   store.restoreNamedVersion(idx)
 }
 
-// Sync dataset name changes to backend
 watch(() => store.datasetName, async (newName) => {
   if (store.datasetSource === 'saved' && store.datasetId && authStore.isAuthenticated) {
     try {
-      await fetch(`http://localhost:8000/api/datasets/${store.datasetId}/`, {
+      await fetch(`${authStore.API_BASE}/api/datasets/${store.datasetId}/`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${authStore.token}`,
@@ -243,9 +233,7 @@ watch(() => store.datasetName, async (newName) => {
         },
         body: JSON.stringify({ name: newName }),
       })
-    } catch (e) {
-      console.warn('Could not sync dataset name:', e)
-    }
+    } catch (e) {}
   }
 })
 </script>

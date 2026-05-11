@@ -5,7 +5,7 @@ import VChart from 'vue-echarts'
 
 const props = defineProps({
   isOpen: { type: Boolean, default: false },
-  chartType: { type: String, default: null }, // 'distribution', 'scatter', 'correlation', 'boxplot'
+  chartType: { type: String, default: null }, 
   rows: { type: Array, default: () => [] },
   columns: { type: Array, default: () => [] },
   columnTypes: { type: Object, default: () => ({}) },
@@ -23,7 +23,7 @@ const selectedY = ref(null)
 
 watch(() => props.isOpen, (newVal) => {
   if (newVal) {
-    // Default selections
+    
     if (numericColumns.value.length > 0) {
       selectedX.value = numericColumns.value[0]
       selectedY.value = props.targetVariable || (numericColumns.value.length > 1 ? numericColumns.value[1] : numericColumns.value[0])
@@ -31,7 +31,6 @@ watch(() => props.isOpen, (newVal) => {
   }
 })
 
-// ─── Math Utils ──────────────
 function pearson(xSeries, ySeries) {
   let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0, sumY2 = 0
   let n = 0
@@ -62,12 +61,11 @@ function getQuantiles(arr) {
   return [min, q1, median, q3, max]
 }
 
-// ─── Chart Options ───────────
 const chartOptions = computed(() => {
   if (props.chartType === 'distribution' && selectedX.value) {
     const type = props.columnTypes[selectedX.value]
     if (type === 'number' || type === 'integer') {
-      // Histogram
+      
       const rawVals = props.rows.map(r => r[selectedX.value])
       const validVals = rawVals.filter(v => v !== null && v !== undefined && v !== '')
       const vals = validVals.map(Number).filter(n => !isNaN(n))
@@ -92,7 +90,7 @@ const chartOptions = computed(() => {
         series: [{ type: 'bar', data: hist, itemStyle: { color: '#4f6ef7' } }]
       }
     } else {
-      // Bar chart for categorical
+      
       const freq = {}
       props.rows.forEach(r => {
         let v = r[selectedX.value]

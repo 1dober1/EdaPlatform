@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 const router = useRouter()
 
 const demoDatasets = ref([])
@@ -9,13 +10,11 @@ const isLoading = ref(true)
 
 onMounted(async () => {
   try {
-    const res = await fetch('http://localhost:8000/api/datasets/demo/')
+    const res = await fetch(`${API_BASE}/api/datasets/demo/`)
     if (res.ok) {
       demoDatasets.value = await res.json()
     }
-  } catch (e) {
-    console.error('Не удалось загрузить список демо-датасетов:', e)
-  } finally {
+  } catch (e) {} finally {
     isLoading.value = false
   }
 })

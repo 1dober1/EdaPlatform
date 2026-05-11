@@ -2,10 +2,13 @@
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useWorkspaceStore } from '@/stores/workspace'
+import Papa from 'papaparse'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const workspaceStore = useWorkspaceStore()
 
 const isRegister = computed(() => route.path === '/register')
 const title = computed(() => isRegister.value ? 'Регистрация' : 'Вход')
@@ -16,6 +19,36 @@ const password = ref('')
 const passwordConfirm = ref('')
 const errorMsg = ref('')
 const isSubmitting = ref(false)
+
+async function claimWorkspaceDataset() {
+  if (!workspaceStore.rows.length || !workspaceStore.columns.length) return
+  if (workspaceStore.datasetSource !== 'upload') return
+
+  try {
+    const csv = Papa.unparse(workspaceStore.rows)
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const file = new File([blob], (workspaceStore.datasetName || 'dataset') + '.csv', { type: 'text/csv' })
+
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('name', workspaceStore.datasetName || 'Без названия')
+
+    const API_BASE = authStore.API_BASE
+    const res = await fetch(`${API_BASE}/api/datasets/claim/`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${authStore.token}` },
+      body: formData,
+    })
+
+    if (res.ok) {
+      const dataset = await res.json()
+      workspaceStore.datasetSource = 'saved'
+      workspaceStore.datasetId = dataset.id
+    }
+  } catch (e) {
+    console.warn('Could not claim dataset:', e)
+  }
+}
 
 async function handleSubmit() {
   errorMsg.value = ''
@@ -32,19 +65,15 @@ async function handleSubmit() {
     } else {
       await authStore.login(email.value, password.value)
     }
-    
-    // Determine where to redirect after auth
+
+    await claimWorkspaceDataset()
+
     const returnUrl = localStorage.getItem('eda_return_url')
     localStorage.removeItem('eda_return_url')
-    
+
     if (returnUrl) {
-      // Return to workspace (for register flow after export attempt)
       router.push(returnUrl)
-    } else if (isRegister.value) {
-      // After registration, go to saved-datasets
-      router.push('/saved-datasets')
     } else {
-      // After login, go to saved-datasets
       router.push('/saved-datasets')
     }
   } catch (err) {
@@ -71,14 +100,14 @@ async function handleSubmit() {
         <h1 class="auth-page__title">{{ title }}</h1>
         <p class="auth-page__subtitle">{{ isRegister ? 'Создайте аккаунт для сохранения ваших датасетов' : 'С возвращением в платформу EDA' }}</p>
       </div>
-      
+
       <form class="auth-form" @submit.prevent="handleSubmit">
         <div class="auth-form__group">
           <label class="auth-form__label">Email</label>
-          <input 
-            type="email" 
-            v-model="email" 
-            class="auth-form__input" 
+          <input
+            type="email"
+            v-model="email"
+            class="auth-form__input"
             required
             placeholder="user@example.com"
           />
@@ -86,10 +115,10 @@ async function handleSubmit() {
 
         <div class="auth-form__group">
           <label class="auth-form__label">Пароль</label>
-          <input 
-            type="password" 
-            v-model="password" 
-            class="auth-form__input" 
+          <input
+            type="password"
+            v-model="password"
+            class="auth-form__input"
             required
             placeholder="••••••••"
           />
@@ -97,10 +126,10 @@ async function handleSubmit() {
 
         <div v-if="isRegister" class="auth-form__group">
           <label class="auth-form__label">Подтверждение пароля</label>
-          <input 
-            type="password" 
-            v-model="passwordConfirm" 
-            class="auth-form__input" 
+          <input
+            type="password"
+            v-model="passwordConfirm"
+            class="auth-form__input"
             required
             placeholder="••••••••"
           />

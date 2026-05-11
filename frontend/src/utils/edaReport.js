@@ -1,32 +1,19 @@
-/**
- * edaReport.js — Генерация HTML EDA-отчёта.
- * 
- * Генерирует полностью автономный HTML-файл со всеми
- * статистиками, таблицами и встроенными SVG-графиками.
- */
+
 
 import { describeAll, inferColumnType } from './dataStats'
 import { analyzeOutliers } from './outlierDetection'
 
-/**
- * Generate a full EDA report as a downloadable HTML file.
- * @param {string} datasetName
- * @param {string[]} columns
- * @param {object[]} rows
- * @param {object} columnTypes
- * @param {string|null} targetVariable
- */
 export function generateEdaReport(datasetName, columns, rows, columnTypes, targetVariable) {
   const describe = describeAll(columns, rows)
   const numericCols = columns.filter(c => columnTypes[c] === 'number' || columnTypes[c] === 'integer')
   
-  // Outlier analysis for numeric columns
+  
   const outlierResults = numericCols.map(col => analyzeOutliers(rows, col))
 
-  // Correlation matrix for numeric columns
+  
   const correlations = computeCorrelationMatrix(numericCols, rows)
 
-  // Missing values summary
+  
   const missingInfo = describe.map(d => ({
     column: d.column,
     nulls: d.nulls,
@@ -102,7 +89,7 @@ function buildHtml(name, columns, rows, describe, numericCols, outlierResults, c
   const nullPercent = totalCells > 0 ? ((totalNulls / totalCells) * 100).toFixed(1) : '0.0'
   const now = new Date().toLocaleString('ru-RU')
 
-  // Build histogram SVGs for numeric columns
+  
   const histograms = numericCols.slice(0, 12).map(col => buildHistogramSvg(rows, col))
 
   return `<!DOCTYPE html>
@@ -281,9 +268,6 @@ function typeLabel(type) {
   return 'object'
 }
 
-/**
- * Build a simple SVG histogram for a numeric column.
- */
 function buildHistogramSvg(rows, col) {
   const values = rows
     .map(r => r[col])

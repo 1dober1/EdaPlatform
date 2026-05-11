@@ -118,7 +118,6 @@ onMounted(() => {
   max-width: 100%;
 }
 
-/* Logo */
 .app-header__logo {
   display: flex;
   align-items: center;
@@ -137,7 +136,6 @@ onMounted(() => {
   flex-shrink: 0;
 }
 
-/* Nav */
 .app-header__nav {
   display: flex;
   align-items: center;
@@ -156,7 +154,6 @@ onMounted(() => {
   color: var(--color-accent);
 }
 
-/* Theme Toggle */
 .app-header__theme-toggle {
   display: flex;
   align-items: center;
@@ -174,7 +171,6 @@ onMounted(() => {
   color: var(--color-accent);
 }
 
-/* Buttons */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -217,7 +213,6 @@ onMounted(() => {
   transform: translateY(-1px);
 }
 
-/* Responsive */
 @media (max-width: 640px) {
   .app-header__nav {
     gap: var(--space-2);

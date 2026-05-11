@@ -18,9 +18,8 @@ class StatsView(APIView):
         User = get_user_model()
         users_count = User.objects.count()
         datasets_count = Dataset.objects.count()
-        # charts can be a generic multiplication if not stored in DB
-        charts_count = datasets_count * 5 + 12 
-        
+        charts_count = datasets_count * 5 + 12
+
         return Response({
             'users': users_count,
             'datasets': datasets_count,
@@ -60,9 +59,7 @@ DEMO_DATASETS = {
     },
 }
 
-
 class DatasetListCreateView(generics.ListCreateAPIView):
-    """GET — список датасетов; POST — загрузить новый."""
     permission_classes = [permissions.IsAuthenticated]
 
     def get_serializer_class(self):
@@ -80,31 +77,13 @@ class DatasetListCreateView(generics.ListCreateAPIView):
 
     @staticmethod
     def _count_rows_cols(uploaded_file):
-        """Подсчёт строк и колонок загруженного файла."""
         try:
             ext = uploaded_file.name.rsplit('.', 1)[-1].lower()
             uploaded_file.seek(0)
 
             if ext == 'parquet':
-                # Parquet files can't be easily read without pandas
-                # We'll store 0,0 and update later if needed
                 return 0, 0
 
-            if ext in ('xlsx', 'xls'):
-                # Excel files are primarily parsed on the frontend
-                # Try openpyxl if available
-                try:
-                    import openpyxl
-                    uploaded_file.seek(0)
-                    wb = openpyxl.load_workbook(uploaded_file, read_only=True)
-                    ws = wb.active
-                    rows = ws.max_row or 0
-                    cols = ws.max_column or 0
-                    wb.close()
-                    return max(rows - 1, 0), cols  # exclude header
-                except ImportError:
-                    return 0, 0
-            
             content = uploaded_file.read().decode('utf-8')
             uploaded_file.seek(0)
 
@@ -114,32 +93,29 @@ class DatasetListCreateView(generics.ListCreateAPIView):
                     reader = csv.reader(io.StringIO(content), dialect)
                 except Exception:
                     reader = csv.reader(io.StringIO(content))
-                
+
                 rows_list = list(reader)
                 if not rows_list:
                     return 0, 0
                 cols = len(rows_list[0])
-                return len(rows_list) - 1, cols  # exclude header
+                return len(rows_list) - 1, cols
             elif ext == 'json':
                 data = json.loads(content)
-                if isinstance(data, list) and data:
-                    return len(data), len(data[0]) if isinstance(data[0], dict) else 0
+                rows = _extract_json_rows(data)
+                if rows:
+                    return len(rows), len(rows[0]) if isinstance(rows[0], dict) else 0
                 return 0, 0
         except Exception:
             return 0, 0
 
-
 class DatasetDetailView(generics.RetrieveUpdateDestroyAPIView):
-    """GET — метаданные; PATCH — обновить имя; DELETE — удалить."""
     serializer_class = DatasetSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         return Dataset.objects.filter(user=self.request.user)
 
-
 class DatasetDownloadView(APIView):
-    """GET /api/datasets/<id>/download/ — скачать файл."""
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, pk):
@@ -149,9 +125,34 @@ class DatasetDownloadView(APIView):
             return Response(status=status.HTTP_404_NOT_FOUND)
         return FileResponse(dataset.file.open('rb'), as_attachment=True, filename=dataset.name)
 
+class ClaimDatasetView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        file = request.FILES.get('file')
+        name = request.data.get('name', 'Без названия')
+        if not file:
+            return Response(
+                {'detail': 'Файл обязателен.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        ext = file.name.rsplit('.', 1)[-1].lower()
+        if ext not in ('csv', 'json', 'parquet'):
+            return Response(
+                {'detail': 'Формат не поддерживается.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        rows, cols = DatasetListCreateView._count_rows_cols(file)
+        dataset = Dataset.objects.create(
+            user=request.user,
+            name=name,
+            file=file,
+            rows=rows,
+            columns=cols,
+        )
+        return Response(DatasetSerializer(dataset).data, status=status.HTTP_201_CREATED)
 
 class DemoListView(APIView):
-    """GET /api/datasets/demo/ — список встроенных демо-датасетов."""
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
@@ -160,9 +161,7 @@ class DemoListView(APIView):
             result.append({'slug': slug, **info})
         return Response(result)
 
-
 class DemoDetailView(APIView):
-    """GET /api/datasets/demo/<slug>/ — содержимое демо-датасета (JSON)."""
     permission_classes = [permissions.AllowAny]
 
     def get(self, request, slug):
@@ -172,7 +171,6 @@ class DemoDetailView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
         import os
-        from django.conf import settings as django_settings
 
         demo_dir = os.path.join(
             os.path.dirname(__file__), 'demo_data'
@@ -193,3 +191,27 @@ class DemoDetailView(APIView):
             'name': DEMO_DATASETS[slug]['name'],
             'data': data,
         })
+
+def _extract_json_rows(data):
+    if isinstance(data, list) and len(data) > 0:
+        if isinstance(data[0], dict):
+            return data
+
+    if isinstance(data, dict):
+        if 'data' in data:
+            inner = data['data']
+            if isinstance(inner, list) and len(inner) > 0 and isinstance(inner[0], dict):
+                return inner
+
+        keys = list(data.keys())
+        if keys and isinstance(data[keys[0]], list):
+            length = len(data[keys[0]])
+            rows = []
+            for i in range(length):
+                row = {}
+                for k in keys:
+                    row[k] = data[k][i] if i < len(data[k]) else None
+                rows.append(row)
+            return rows
+
+    return []

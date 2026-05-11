@@ -25,7 +25,7 @@ const showExportModal = ref(false)
 
 function handleExport() {
   if (!authStore.isAuthenticated) {
-    // Save current workspace URL to return after registration
+    
     localStorage.setItem('eda_pending_action', 'export')
     localStorage.setItem('eda_return_url', window.location.pathname)
     alert('Для экспорта датасета необходимо зарегистрироваться в системе')
@@ -40,7 +40,6 @@ function handleExportFormat(format) {
   emit('export', format)
 }
 
-// ─── Tool definitions ──────────────────────────────────────────
 const emit = defineEmits([
   'export',
   'fill-nulls',
@@ -82,7 +81,6 @@ function toggleSection(id) {
   activeSection.value = activeSection.value === id ? null : id
 }
 
-// ─── Nulls ─────────────────────────────────────────────────────
 const columnsWithNulls = computed(() => {
   return props.describeData.filter(d => d.nulls > 0).map(d => ({
     column: d.column,
@@ -97,7 +95,6 @@ function handleFillNulls(col, strategy) {
   emit('fill-nulls', col, strategy)
 }
 
-// ─── Duplicates ────────────────────────────────────────────────
 const duplicateCount = computed(() => {
   const seen = new Set()
   let dups = 0
@@ -113,7 +110,6 @@ function handleRemoveDuplicates() {
   emit('remove-duplicates')
 }
 
-// ─── Types ─────────────────────────────────────────────────────
 function pandasType(col) {
   const t = props.columnTypes[col]
   if (t === 'number') return 'float64'
@@ -122,17 +118,16 @@ function pandasType(col) {
   return 'object'
 }
 
-/** Returns a consistent CSS-friendly type name for badge coloring */
 function displayType(col) {
   const t = props.columnTypes[col]
   if (t === 'number') return 'number'
   if (t === 'integer') return 'integer'
   if (t === 'boolean') return 'boolean'
-  return 'object' // string, mixed, empty → all shown as 'object'
+  return 'object' 
 }
 
 function handleChangeType(col, newType) {
-  // Warn when converting object column to int/float
+  
   const currentType = props.columnTypes[col]
   if ((currentType === 'string' || currentType === 'mixed' || currentType === 'object') &&
       (newType === 'int64' || newType === 'float64')) {
@@ -146,7 +141,6 @@ function handleChangeType(col, newType) {
   emit('change-type', col, newType)
 }
 
-// ─── Custom NaN values ────────────────────────────────────────
 const nanKeywords = ref({})
 const defaultNanKeywords = 'NaN, None, NA, N/A, null, -, --'
 
@@ -165,7 +159,6 @@ function handleReplaceNanValues(col) {
   nanKeywords.value[col] = ''
 }
 
-// ─── Normalize ─────────────────────────────────────────────────
 const numericColumns = computed(() => {
   return props.columns.filter(c => props.columnTypes[c] === 'number' || props.columnTypes[c] === 'integer')
 })
@@ -174,7 +167,6 @@ function handleNormalize(col, method) {
   emit('normalize-column', col, method)
 }
 
-// ─── Clip ─────────────────────────────────────────────────
 import { watch } from 'vue'
 
 const clipBounds = ref({})
@@ -189,7 +181,6 @@ function handleClip(col, method, minVal = null, maxVal = null) {
   emit('clip-column', col, method, minVal, maxVal)
 }
 
-// ─── Encode ───────────────────────────────────────────────
 const categoricalColumns = computed(() => {
   return props.columns.filter(c => {
     const t = props.columnTypes[c]
@@ -201,7 +192,6 @@ function handleEncode(col, method) {
   emit('encode-column', col, method)
 }
 
-// ─── Target ────────────────────────────────────────────────────
 const localTarget = ref(props.targetVariable)
 
 function handleSetTarget(val) {
@@ -210,7 +200,6 @@ function handleSetTarget(val) {
   emit('set-target', v)
 }
 
-// Auto-detect target variable
 const targetGuessResult = computed(() => {
   if (props.columns.length === 0 || props.rows.length === 0) return null
   return guessTargetVariable(props.columns, props.rows, props.columnTypes)
@@ -222,7 +211,6 @@ function applyTargetGuess() {
   }
 }
 
-// ─── Outliers ───────────────────────────────────────────────
 const outlierAnalysis = computed(() => {
   return numericColumns.value.map(col => analyzeOutliers(props.rows, col))
 })
@@ -231,7 +219,6 @@ function handleRemoveOutliers(col, method) {
   emit('remove-outliers', col, method)
 }
 
-// ─── EDA Report ─────────────────────────────────────────────
 function handleGenerateReport() {
   if (!authStore.isAuthenticated) {
     localStorage.setItem('eda_pending_action', 'export')
@@ -249,7 +236,6 @@ function handleGenerateReport() {
   )
 }
 
-// ─── Versions ───────────────────────────────────────────────
 const versionName = ref('')
 
 function handleSaveVersion() {
@@ -294,7 +280,7 @@ function handleRestoreVersion(id) {
             </svg>
           </button>
 
-          <!-- ═══ DESCRIBE ═══ -->
+          
           <div v-if="activeSection === 'describe' && tool.id === 'describe'" class="tool-panel">
             <div v-for="d in describeData" :key="d.column" class="stat-card">
               <div class="stat-card__header">
@@ -321,7 +307,7 @@ function handleRestoreVersion(id) {
             </div>
           </div>
 
-          <!-- ═══ CUSTOM NaN VALUES ═══ -->
+          
           <div v-if="activeSection === 'nan-values' && tool.id === 'nan-values'" class="tool-panel">
             <p class="tool-panel__hint">
               Укажите слова, которые нужно считать пропусками (через запятую).
@@ -343,7 +329,7 @@ function handleRestoreVersion(id) {
             </div>
           </div>
 
-          <!-- ═══ OUTLIERS ═══ -->
+          
           <div v-if="activeSection === 'outliers' && tool.id === 'outliers'" class="tool-panel">
             <div v-if="numericColumns.length === 0" class="tool-panel__empty">
               Нет числовых столбцов
@@ -383,7 +369,7 @@ function handleRestoreVersion(id) {
             </div>
           </div>
 
-          <!-- ═══ NULLS (per-column) ═══ -->
+          
           <div v-if="activeSection === 'nulls' && tool.id === 'nulls'" class="tool-panel">
             <div v-if="columnsWithNulls.length === 0" class="tool-panel__empty">
               ✓ Пропусков нет
@@ -410,7 +396,7 @@ function handleRestoreVersion(id) {
             </div>
           </div>
 
-          <!-- ═══ DUPLICATES ═══ -->
+          
           <div v-if="activeSection === 'duplicates' && tool.id === 'duplicates'" class="tool-panel">
             <div class="tool-panel__stat">
               <span class="tool-panel__stat-num">{{ duplicateCount.toLocaleString() }}</span>
@@ -421,7 +407,7 @@ function handleRestoreVersion(id) {
             </button>
           </div>
 
-          <!-- ═══ TYPES (per-column) ═══ -->
+          
           <div v-if="activeSection === 'types' && tool.id === 'types'" class="tool-panel">
             <div v-for="col in columns" :key="col" class="type-row">
               <span class="type-row__name" :title="col">{{ col }}</span>
@@ -434,7 +420,7 @@ function handleRestoreVersion(id) {
             </div>
           </div>
 
-          <!-- ═══ NORMALIZE (per-column) ═══ -->
+          
           <div v-if="activeSection === 'normalize' && tool.id === 'normalize'" class="tool-panel">
             <div v-if="numericColumns.length === 0" class="tool-panel__empty">
               Нет числовых столбцов
@@ -449,7 +435,7 @@ function handleRestoreVersion(id) {
             </div>
           </div>
 
-          <!-- ═══ CLIP (per-column) ═══ -->
+          
           <div v-if="activeSection === 'clip' && tool.id === 'clip'" class="tool-panel">
             <div v-if="numericColumns.length === 0" class="tool-panel__empty">
               Нет числовых столбцов
@@ -467,7 +453,7 @@ function handleRestoreVersion(id) {
             </div>
           </div>
 
-          <!-- ═══ ENCODE (per-column) ═══ -->
+          
           <div v-if="activeSection === 'encode' && tool.id === 'encode'" class="tool-panel">
             <div v-if="categoricalColumns.length === 0" class="tool-panel__empty">
               Нет категориальных столбцов
@@ -481,7 +467,7 @@ function handleRestoreVersion(id) {
             </div>
           </div>
 
-          <!-- ═══ TARGET VARIABLE ═══ -->
+          
           <div v-if="activeSection === 'target' && tool.id === 'target'" class="tool-panel">
             <p class="tool-panel__hint">Выберите целевую переменную:</p>
             <select class="tool-panel__select" :value="targetVariable || ''" @change="handleSetTarget($event.target.value)">
@@ -489,7 +475,7 @@ function handleRestoreVersion(id) {
               <option v-for="col in columns" :key="col" :value="col">{{ col }}</option>
             </select>
 
-            <!-- Auto-detection suggestion -->
+            
             <div v-if="targetGuessResult && targetGuessResult.column && !targetVariable" class="target-guess">
               <div class="target-guess__header">
                 <span class="target-guess__icon">🤖</span>
@@ -510,7 +496,7 @@ function handleRestoreVersion(id) {
             </p>
           </div>
 
-          <!-- ═══ VERSIONS ═══ -->
+          
           <div v-if="activeSection === 'versions' && tool.id === 'versions'" class="tool-panel">
             <p class="tool-panel__hint">Сохраняйте версии датасета для отката к любому состоянию.</p>
             <div class="version-save">
@@ -533,7 +519,7 @@ function handleRestoreVersion(id) {
         </div>
       </div>
 
-      <!-- Charts section -->
+      
       <div class="sidebar__divider"></div>
       <h4 class="sidebar__subtitle">Графики</h4>
       <div class="sidebar__section">
@@ -545,7 +531,7 @@ function handleRestoreVersion(id) {
         </div>
       </div>
 
-      <!-- Report button -->
+      
       <div class="sidebar__divider"></div>
       <div class="sidebar__section" style="padding-bottom:var(--space-2)">
         <button class="act-btn act-btn--wide report-btn" @click="handleGenerateReport">
@@ -553,7 +539,7 @@ function handleRestoreVersion(id) {
         </button>
       </div>
 
-      <!-- Export -->
+      
       <div class="sidebar__export">
         <button class="btn--accent-export" @click="handleExport">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -562,7 +548,7 @@ function handleRestoreVersion(id) {
       </div>
     </div>
 
-    <!-- Export format modal -->
+    
     <Teleport to="body">
       <div v-if="showExportModal" class="export-modal-overlay" @click.self="showExportModal = false">
         <div class="export-modal">
@@ -639,7 +625,6 @@ function handleRestoreVersion(id) {
 .sidebar__divider { height: 1px; background: var(--color-border); margin: var(--space-3) 0; }
 .sidebar__section { padding: 0 var(--space-2); }
 
-/* Tool Item */
 .tool-item { border-radius: var(--radius-sm); margin-bottom: 1px; }
 .tool-item.is-active { background: var(--color-bg-secondary); }
 
@@ -654,7 +639,6 @@ function handleRestoreVersion(id) {
 .tool-item__label { flex: 1; }
 .tool-item__chevron { flex-shrink: 0; opacity: 0.4; }
 
-/* Tool Panel */
 .tool-panel { padding: var(--space-2) var(--space-3) var(--space-3); }
 
 .tool-panel__hint { font-size: 11px; color: var(--color-text-tertiary); margin-bottom: var(--space-2); }
@@ -680,7 +664,6 @@ function handleRestoreVersion(id) {
   font-size: 11px; color: var(--color-accent); margin-top: var(--space-2);
 }
 
-/* Action buttons */
 .act-btn {
   padding: 3px 8px; font-size: 10px; font-weight: 600;
   border: 1px solid var(--color-border); border-radius: var(--radius-sm);
@@ -693,7 +676,6 @@ function handleRestoreVersion(id) {
 .act-btn--danger:hover { border-color: var(--color-error); color: #fff; background: var(--color-error); }
 .act-btn--wide { width: 100%; padding: 5px 8px; font-size: 11px; }
 
-/* Stat cards */
 .stat-card { background: var(--color-bg-primary); border: 1px solid var(--color-border-light); border-radius: var(--radius-sm); overflow: hidden; margin-bottom: var(--space-2); }
 .stat-card__header { display: flex; justify-content: space-between; align-items: center; padding: 4px 8px; border-bottom: 1px solid var(--color-border-light); background: var(--color-bg-tertiary); }
 .stat-card__name { font-size: 11px; font-weight: 600; color: var(--color-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -707,7 +689,6 @@ function handleRestoreVersion(id) {
 .stat-row { display: flex; justify-content: space-between; font-size: 11px; padding: 1px 0; color: var(--color-text-secondary); }
 .stat-row__val { max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* Null cards (per-column) */
 .null-card { padding: var(--space-2) 0; border-bottom: 1px solid var(--color-border-light); }
 .null-card:last-child { border-bottom: none; }
 .null-card__header { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 3px; }
@@ -719,7 +700,6 @@ function handleRestoreVersion(id) {
 .bar--danger { background: var(--color-error); }
 .null-card__actions { display: flex; gap: 3px; flex-wrap: wrap; }
 
-/* Type rows */
 .type-row { display: flex; justify-content: space-between; align-items: center; padding: 3px 0; }
 .type-row__name { font-size: 11px; font-weight: 500; color: var(--color-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 120px; }
 .type-row__select {
@@ -729,7 +709,6 @@ function handleRestoreVersion(id) {
   font-family: var(--font-family); font-size: 10px; cursor: pointer;
 }
 
-/* Normalize cards */
 .norm-card {
   display: flex; justify-content: space-between; align-items: center;
   padding: 4px 0; border-bottom: 1px solid var(--color-border-light);
@@ -738,7 +717,6 @@ function handleRestoreVersion(id) {
 .norm-card__name { font-size: 11px; font-weight: 500; color: var(--color-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 90px; }
 .norm-card__actions { display: flex; gap: 3px; }
 
-/* Export */
 .sidebar__export { flex-shrink: 0; padding: var(--space-3); border-top: 1px solid var(--color-border); margin-top: auto; }
 .btn--accent-export {
   width: 100%; display: flex; align-items: center; justify-content: center;
@@ -750,7 +728,6 @@ function handleRestoreVersion(id) {
 }
 .btn--accent-export:hover { filter: brightness(1.1); box-shadow: 0 4px 14px rgba(79, 110, 247, 0.4); transform: translateY(-1px); }
 
-/* NaN cards */
 .nan-card { padding: var(--space-2) 0; border-bottom: 1px solid var(--color-border-light); }
 .nan-card:last-child { border-bottom: none; }
 .nan-card__header { margin-bottom: 4px; }
@@ -758,7 +735,6 @@ function handleRestoreVersion(id) {
 .nan-card__body { display: flex; gap: 4px; align-items: center; }
 .nan-card__body input { flex: 1; padding: 4px 8px; font-size: 10px; }
 
-/* Export modal */
 .export-modal-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999;
   display: flex; align-items: center; justify-content: center;
@@ -795,7 +771,6 @@ function handleRestoreVersion(id) {
 }
 .export-modal__cancel:hover { color: var(--color-text-primary); }
 
-/* Outlier cards */
 .outlier-card { padding: var(--space-2) 0; border-bottom: 1px solid var(--color-border-light); }
 .outlier-card:last-child { border-bottom: none; }
 .outlier-card__header { margin-bottom: 4px; }
@@ -807,7 +782,6 @@ function handleRestoreVersion(id) {
 .outlier-count.has-outliers { color: var(--color-warning); }
 .outlier-detail { display: flex; gap: 8px; font-size: 9px; color: var(--color-text-tertiary); margin-bottom: 2px; padding-left: 4px; }
 
-/* Target guess */
 .target-guess { margin-top: var(--space-3); padding: var(--space-2); background: var(--color-accent-light, rgba(79,110,247,0.05)); border-radius: var(--radius-sm); border: 1px dashed var(--color-accent, #4f6ef7); }
 .target-guess__header { display: flex; align-items: center; gap: 4px; margin-bottom: 4px; }
 .target-guess__icon { font-size: 14px; }
@@ -820,14 +794,12 @@ function handleRestoreVersion(id) {
 .target-guess__reasons { font-size: 10px; color: var(--color-text-tertiary); list-style: none; margin-bottom: 6px; }
 .target-guess__reasons li::before { content: '→ '; color: var(--color-accent); }
 
-/* Version list */
 .version-save { margin-bottom: var(--space-3); }
 .version-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--color-border-light); font-size: 10px; }
 .version-item:last-child { border-bottom: none; }
 .version-item__name { font-weight: 500; font-size: 11px; color: var(--color-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px; margin-bottom: 2px; }
 .version-item__meta { font-size: 9px; color: var(--color-text-tertiary); }
 
-/* Report button */
 .report-btn { padding: 8px 12px !important; font-size: 11px !important; background: var(--color-accent-light, rgba(79,110,247,0.08)) !important; border-color: var(--color-accent, #4f6ef7) !important; color: var(--color-accent, #4f6ef7) !important; font-weight: 600 !important; }
 .report-btn:hover { background: var(--color-accent, #4f6ef7) !important; color: #fff !important; }
 </style>

@@ -1,8 +1,3 @@
-/**
- * Pinia store для данных текущего рабочего пространства.
- * Включает мутации: удаление столбцов, заполнение пропусков, удаление дубликатов,
- * смена типов, нормализация.
- */
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { describeAll, inferColumnType } from '@/utils/dataStats'
@@ -22,7 +17,6 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   const datasetSource = ref(null)
   const datasetId = ref(null)
 
-  // ─── Undo/Redo & History ──────────────────────────────────────────
   const history = ref([])
   const historyIndex = ref(-1)
 
@@ -71,16 +65,13 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     persistToStorage()
   }
 
-  // ─── Persistence ──────────────────────────────────────────
   async function persistToStorage() {
     try {
       if (historyIndex.value >= 0) {
         const rawState = JSON.parse(JSON.stringify(history.value[historyIndex.value]))
         await localforage.setItem('eda_workspace_state', rawState)
       }
-    } catch (e) {
-      console.error('Failed to save to localforage', e)
-    }
+    } catch (e) {}
   }
 
   async function loadFromStorage() {
@@ -103,11 +94,9 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     return false
   }
 
-  // ─── Async wrapper ──────────────────────────────────────────
   async function withSync(fn) {
     isLoading.value = true
     NProgress.start()
-    // Увеличим таймаут чтобы Vue успел отрендерить оверлей загрузки
     await new Promise(r => setTimeout(r, 20))
     if (history.value.length === 0) saveState()
     let result
@@ -117,7 +106,6 @@ export const useWorkspaceStore = defineStore('workspace', () => {
       invalidateCache()
     } catch (e) {
       alert("Сбой операции: " + e.message)
-      console.error(e)
     } finally {
       isLoading.value = false
       NProgress.done()
@@ -125,7 +113,6 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     return result
   }
 
-  // Типы колонок (кешируем)
   const columnTypes = computed(() => {
     const result = {}
     for (const col of columns.value) {
@@ -134,12 +121,10 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     return result
   })
 
-  // Describe cache (invalidated on any mutation)
   const describeCache = ref(null)
 
   function invalidateCache() {
     describeCache.value = null
-    // Update meta counts
     meta.value = {
       ...meta.value,
       totalRows: rows.value.length,
@@ -169,9 +154,6 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     return describeCache.value
   }
 
-  // ─── Mutations ───────────────────────────────────────────────
-
-  /** Удалить столбец */
   function deleteColumn(col) {
     withSync(() => {
       columns.value = columns.value.filter(c => c !== col)
@@ -184,7 +166,6 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     })
   }
 
-  /** Переименовать столбец */
   function renameColumn(oldCol, newCol) {
     if (!columns.value.includes(oldCol) || columns.value.includes(newCol) || !newCol.trim()) return
     withSync(() => {
@@ -200,9 +181,6 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     })
   }
 
-
-
-  /** Заполнить пропуски в конкретном столбце */
   function fillNulls(col, strategy) {
     withSync(() => {
       const type = inferColumnType(rows.value, col)
@@ -273,7 +251,6 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     })
   }
 
-  /** Изменить тип данных столбца */
   function changeColumnType(col, newType) {
     withSync(() => {
       rows.value = rows.value.map(row => {
@@ -296,7 +273,6 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     })
   }
 
-  /** Нормализация конкретного столбца */
   function normalizeColumn(col, method) {
     withSync(() => {
       const nums = rows.value.map(r => {
@@ -330,7 +306,6 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     })
   }
 
-  /** Обрезка (clipping) значений столбца по краям (квантилям или ручным границам) */
   function clipColumn(col, method, minVal, maxVal) {
     withSync(() => {
       const nums = rows.value.map(r => {
@@ -361,21 +336,19 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     })
   }
 
-  /** Категориальное кодирование (Label / One-Hot) */
   function encodeColumn(col, method, dropOriginal = true) {
     withSync(() => {
       if (method === 'label') {
-        // Уникальные значения
         const uniqueValues = Array.from(new Set(rows.value.map(r => String(r[col])))).sort()
         const map = new Map()
         uniqueValues.forEach((v, i) => map.set(v, i))
-        
+
         rows.value = rows.value.map(row => {
           return { ...row, [col]: map.get(String(row[col])) }
         })
       } else if (method === 'onehot') {
         const uniqueValues = Array.from(new Set(rows.value.map(r => String(r[col]))))
-        
+
         rows.value = rows.value.map(row => {
           const newRow = { ...row }
           const cellValue = String(row[col])
@@ -387,13 +360,13 @@ export const useWorkspaceStore = defineStore('workspace', () => {
           if (dropOriginal) delete newRow[col]
           return newRow
         })
-        
+
         const colIndex = columns.value.indexOf(col)
         const newCols = uniqueValues.map(val => {
           const cleanVal = val.replace(/[\s\W]+/g, '_').toLowerCase()
           return `${col}_${cleanVal}`
         })
-        
+
         if (dropOriginal) {
           columns.value.splice(colIndex, 1, ...newCols)
           if (targetVariable.value === col) targetVariable.value = null
@@ -404,7 +377,6 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     })
   }
 
-  /** Заменить строковые NaN-значения на null */
   function replaceNanValues(col, keywords) {
     withSync(() => {
       const keySet = new Set(keywords.map(k => k.trim()))
@@ -429,7 +401,6 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     localforage.removeItem('eda_named_versions')
   }
 
-  /** Удалить выбросы из столбца по IQR или Z-score */
   function removeOutliers(col, method) {
     withSync(() => {
       const values = rows.value.map(r => {
@@ -442,27 +413,22 @@ export const useWorkspaceStore = defineStore('workspace', () => {
       if (method === 'iqr') {
         const validValues = values.filter(v => v !== null && !isNaN(v))
         const result = detectOutliersIQR(validValues)
-        // Map valid indices back to original indices
-        let validIdx = 0
         values.forEach((v, i) => {
           if (v !== null && !isNaN(v)) {
             if (v < result.lower || v > result.upper) {
               indicesToRemove.add(i)
             }
-            validIdx++
           }
         })
       } else if (method === 'zscore') {
         const validValues = values.filter(v => v !== null && !isNaN(v))
         const result = detectOutliersZScore(validValues)
-        let validIdx = 0
         values.forEach((v, i) => {
           if (v !== null && !isNaN(v)) {
             const z = Math.abs((v - result.mean) / result.std)
             if (z > result.threshold) {
               indicesToRemove.add(i)
             }
-            validIdx++
           }
         })
       }
@@ -473,7 +439,6 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     })
   }
 
-  // ─── Named Versions ──────────────────────────────────────────
   const allNamedVersions = ref([])
 
   const namedVersions = computed(() => {
@@ -508,20 +473,19 @@ export const useWorkspaceStore = defineStore('workspace', () => {
       meta: { ...meta.value },
     }
     allNamedVersions.value.push(snapshot)
-    
+
     const datasetVersions = allNamedVersions.value.filter(v => v.sourceId === currentId)
     if (datasetVersions.length > 20) {
       const oldestId = datasetVersions[0].id
       allNamedVersions.value = allNamedVersions.value.filter(v => v.id !== oldestId)
     }
-    
+
     localforage.setItem('eda_named_versions', JSON.parse(JSON.stringify(allNamedVersions.value)))
   }
 
   function restoreNamedVersion(id) {
     const ver = allNamedVersions.value.find(v => v.id === id)
     if (!ver) return
-    // Save current state before restoring
     saveState()
     columns.value = [...ver.columns]
     rows.value = ver.rows.map(r => ({ ...r }))

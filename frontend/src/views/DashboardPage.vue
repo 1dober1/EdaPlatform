@@ -36,8 +36,8 @@ async function handleFile(file) {
       const formData = new FormData()
       formData.append('file', file)
       formData.append('name', file.name.replace(/\.[^.]+$/, ''))
-      
-      const req = await fetch('http://localhost:8000/api/datasets/', {
+
+      const req = await fetch(`${authStore.API_BASE}/api/datasets/`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${authStore.token}` },
         body: formData
@@ -77,7 +77,7 @@ async function handleFile(file) {
         {{ errorMsg }}
       </div>
 
-      <div 
+      <div
         class="dashboard__dropzone"
         :class="{ 'is-dragging': isDragging, 'is-processing': isProcessing }"
         @dragenter.prevent="onDragEnter"
@@ -97,11 +97,11 @@ async function handleFile(file) {
               <line x1="12" y1="3" x2="12" y2="15"></line>
             </svg>
             <span class="dashboard__dropzone-text">Перетащите или откройте файл</span>
-            <span class="dashboard__dropzone-hint">Поддерживаются CSV, JSON, Parquet, Excel (.xlsx, .xls)</span>
+            <span class="dashboard__dropzone-hint">Поддерживаются CSV, JSON и Parquet</span>
           </template>
         </div>
         <label class="dashboard__dropzone-trigger" v-show="!isProcessing">
-          <input type="file" accept=".csv,.json,.parquet,.xlsx,.xls" @change="onFileSelect" />
+          <input type="file" accept=".csv,.json,.parquet" @change="onFileSelect" />
         </label>
       </div>
     </div>
