@@ -474,18 +474,29 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   }
 
   // ─── Named Versions ──────────────────────────────────────────
-  const namedVersions = ref([])
+  const allNamedVersions = ref([])
+
+  const namedVersions = computed(() => {
+    const currentId = `${datasetSource.value}_${datasetId.value}`
+    return allNamedVersions.value
+      .filter(v => v.sourceId === currentId)
+      .sort((a, b) => b.timestamp - a.timestamp)
+  })
 
   async function loadNamedVersions() {
     try {
       const saved = await localforage.getItem('eda_named_versions')
-      if (saved && Array.isArray(saved)) namedVersions.value = saved
+      if (saved && Array.isArray(saved)) allNamedVersions.value = saved
     } catch (e) {}
   }
   loadNamedVersions()
 
   function saveNamedVersion(name) {
+    const currentId = `${datasetSource.value}_${datasetId.value}`
     const snapshot = {
+      id: Date.now(),
+      timestamp: Date.now(),
+      sourceId: currentId,
       name,
       date: new Date().toLocaleString('ru-RU'),
       rowCount: rows.value.length,
@@ -496,14 +507,19 @@ export const useWorkspaceStore = defineStore('workspace', () => {
       datasetName: datasetName.value,
       meta: { ...meta.value },
     }
-    namedVersions.value.push(snapshot)
-    // Keep max 20 versions
-    if (namedVersions.value.length > 20) namedVersions.value.shift()
-    localforage.setItem('eda_named_versions', JSON.parse(JSON.stringify(namedVersions.value)))
+    allNamedVersions.value.push(snapshot)
+    
+    const datasetVersions = allNamedVersions.value.filter(v => v.sourceId === currentId)
+    if (datasetVersions.length > 20) {
+      const oldestId = datasetVersions[0].id
+      allNamedVersions.value = allNamedVersions.value.filter(v => v.id !== oldestId)
+    }
+    
+    localforage.setItem('eda_named_versions', JSON.parse(JSON.stringify(allNamedVersions.value)))
   }
 
-  function restoreNamedVersion(idx) {
-    const ver = namedVersions.value[idx]
+  function restoreNamedVersion(id) {
+    const ver = allNamedVersions.value.find(v => v.id === id)
     if (!ver) return
     // Save current state before restoring
     saveState()

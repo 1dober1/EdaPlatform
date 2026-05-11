@@ -133,6 +133,7 @@ function openDataset(slug) {
 .demo-card__name {
   font-size: var(--font-size-base);
   font-weight: 600;
+  color: var(--color-text-primary);
 }
 
 .demo-card__desc {

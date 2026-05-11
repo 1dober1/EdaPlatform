@@ -12,6 +12,7 @@ const props = defineProps({
   rows: { type: Array, default: () => [] },
   columnTypes: { type: Object, default: () => ({}) },
   targetVariable: { type: String, default: null },
+  namedVersions: { type: Array, default: () => [] },
 })
 
 const isCollapsed = ref(false)
@@ -232,6 +233,13 @@ function handleRemoveOutliers(col, method) {
 
 // ─── EDA Report ─────────────────────────────────────────────
 function handleGenerateReport() {
+  if (!authStore.isAuthenticated) {
+    localStorage.setItem('eda_pending_action', 'export')
+    localStorage.setItem('eda_return_url', window.location.pathname)
+    alert('Для генерации отчёта необходимо зарегистрироваться в системе')
+    router.push('/register')
+    return
+  }
   generateEdaReport(
     'dataset',
     props.columns,
@@ -245,14 +253,21 @@ function handleGenerateReport() {
 const versionName = ref('')
 
 function handleSaveVersion() {
+  if (!authStore.isAuthenticated) {
+    localStorage.setItem('eda_pending_action', 'export')
+    localStorage.setItem('eda_return_url', window.location.pathname)
+    alert('Для сохранения версий датасета необходимо зарегистрироваться в системе')
+    router.push('/register')
+    return
+  }
   const name = versionName.value.trim() || `v${new Date().toLocaleString('ru-RU')}`
   emit('save-version', name)
   versionName.value = ''
 }
 
-function handleRestoreVersion(idx) {
+function handleRestoreVersion(id) {
   if (confirm('Восстановить эту версию? Текущие изменения будут потеряны.')) {
-    emit('restore-version', idx)
+    emit('restore-version', id)
   }
 }
 </script>
@@ -503,7 +518,16 @@ function handleRestoreVersion(idx) {
               <button class="act-btn act-btn--wide" @click="handleSaveVersion" style="margin-top:4px">💾 Сохранить версию</button>
             </div>
             <div class="version-list">
-              <slot name="versions"></slot>
+              <div v-if="props.namedVersions.length === 0" class="tool-panel__empty" style="font-size:11px;color:var(--color-text-tertiary);padding:4px 0">
+                Нет сохранённых версий
+              </div>
+              <div v-for="ver in props.namedVersions" :key="ver.id" class="version-item">
+                <div>
+                  <div class="version-item__name" :title="ver.name">{{ ver.name }}</div>
+                  <div class="version-item__meta">{{ ver.date }} · {{ ver.rowCount }} стр. · {{ ver.colCount }} столб.</div>
+                </div>
+                <button class="act-btn" @click="handleRestoreVersion(ver.id)">Восстановить</button>
+              </div>
             </div>
           </div>
         </div>
@@ -798,9 +822,9 @@ function handleRestoreVersion(idx) {
 
 /* Version list */
 .version-save { margin-bottom: var(--space-3); }
-.version-item { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid var(--color-border-light); font-size: 11px; }
+.version-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--color-border-light); font-size: 10px; }
 .version-item:last-child { border-bottom: none; }
-.version-item__name { font-weight: 500; color: var(--color-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px; }
+.version-item__name { font-weight: 500; font-size: 11px; color: var(--color-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px; margin-bottom: 2px; }
 .version-item__meta { font-size: 9px; color: var(--color-text-tertiary); }
 
 /* Report button */

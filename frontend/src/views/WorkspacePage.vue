@@ -50,7 +50,7 @@ onMounted(async () => {
 
 function checkPendingAction() {
   const pending = localStorage.getItem('eda_pending_action')
-  if (pending === 'export') {
+  if (pending === 'export' && authStore.isAuthenticated) {
     localStorage.removeItem('eda_pending_action')
     // Give the user a moment to see the workspace, then prompt export
     setTimeout(() => {
@@ -293,6 +293,7 @@ watch(() => store.datasetName, async (newName) => {
           :rows="store.rows"
           :columnTypes="store.columnTypes"
           :targetVariable="store.targetVariable"
+          :namedVersions="store.namedVersions"
           @export="handleExport"
           @fill-nulls="handleFillNulls"
           @replace-nan-values="handleReplaceNanValues"
@@ -306,20 +307,7 @@ watch(() => store.datasetName, async (newName) => {
           @remove-outliers="handleRemoveOutliers"
           @save-version="handleSaveVersion"
           @restore-version="handleRestoreVersion"
-        >
-          <template #versions>
-            <div v-if="store.namedVersions.length === 0" class="tool-panel__empty" style="font-size:11px;color:var(--color-text-tertiary);padding:4px 0">
-              Нет сохранённых версий
-            </div>
-            <div v-for="(ver, idx) in store.namedVersions" :key="idx" class="version-item">
-              <div>
-                <div class="version-item__name">{{ ver.name }}</div>
-                <div class="version-item__meta">{{ ver.date }} · {{ ver.rowCount }} стр. · {{ ver.colCount }} столб.</div>
-              </div>
-              <button class="act-btn" @click="handleRestoreVersion(idx)">Восстановить</button>
-            </div>
-          </template>
-        </EdaSidebar>
+        />
       </div>
 
       <ChartModal
