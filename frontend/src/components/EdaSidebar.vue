@@ -15,7 +15,7 @@ const props = defineProps({
   namedVersions: { type: Array, default: () => [] },
 })
 
-const isCollapsed = ref(false)
+const isCollapsed = ref(window.innerWidth <= 768)
 const activeSection = ref(null)
 
 const authStore = useAuthStore()
@@ -804,4 +804,30 @@ function handleRestoreVersion(id) {
 
 .report-btn { padding: 8px 12px !important; font-size: 11px !important; background: var(--color-accent-light, rgba(79,110,247,0.08)) !important; border-color: var(--color-accent, #4f6ef7) !important; color: var(--color-accent, #4f6ef7) !important; font-weight: 600 !important; }
 .report-btn:hover { background: var(--color-accent, #4f6ef7) !important; color: #fff !important; }
+
+@media (max-width: 768px) {
+  .sidebar {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 50;
+    box-shadow: -4px 0 15px rgba(0,0,0,0.15);
+    transition: transform var(--transition-base);
+    overflow: visible;
+  }
+  .sidebar.is-collapsed {
+    transform: translateX(100%);
+    width: 300px;
+    min-width: 300px;
+  }
+  .sidebar.is-collapsed .sidebar__toggle {
+    left: -28px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-right: none;
+    border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+    box-shadow: -2px 0 5px rgba(0,0,0,0.05);
+  }
+}
 </style>

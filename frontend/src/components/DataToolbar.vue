@@ -197,4 +197,28 @@ function formatBytes(bytes) {
   color: var(--color-accent);
   font-weight: 600;
 }
+
+@media (max-width: 768px) {
+  .toolbar {
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+  .toolbar__name-group {
+    width: 100%;
+    order: 1;
+  }
+  .toolbar__name-input {
+    width: 100%;
+  }
+  .toolbar__history {
+    margin-left: 0;
+    margin-right: auto;
+    order: 2;
+  }
+  .toolbar__badges {
+    flex-wrap: wrap;
+    order: 3;
+    justify-content: flex-start;
+  }
+}
 </style>

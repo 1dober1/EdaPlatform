@@ -60,26 +60,28 @@ onMounted(() => {
         <template v-if="authStore.isAuthenticated && authStore.user">
           <router-link to="/saved-datasets" class="btn btn--outline btn--sm" id="btn-saved-header" title="Мои датасеты">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-            Мои датасеты
+            <span class="btn-text">Мои датасеты</span>
           </router-link>
           <router-link to="/dashboard" class="app-header__user-email">{{ authStore.user.username }}</router-link>
-          <button @click="handleLogout" class="btn btn--outline btn--sm" id="btn-logout-header">
-            Выйти
+          <button @click="handleLogout" class="btn btn--outline btn--sm" id="btn-logout-header" title="Выйти">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            <span class="btn-text">Выйти</span>
           </button>
         </template>
 
         <template v-else>
-          <router-link to="/dashboard" class="btn btn--outline btn--sm" id="btn-upload-header">
+          <router-link to="/dashboard" class="btn btn--outline btn--sm" id="btn-upload-header" title="Загрузить свой датасет">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
               <polyline points="17 8 12 3 7 8"/>
               <line x1="12" y1="3" x2="12" y2="15"/>
             </svg>
-            Загрузить свой датасет
+            <span class="btn-text">Загрузить свой датасет</span>
           </router-link>
 
-          <router-link to="/login" class="btn btn--primary btn--sm" id="btn-login-header">
-            Войти
+          <router-link to="/login" class="btn btn--primary btn--sm" id="btn-login-header" title="Войти">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+            <span class="btn-text">Войти</span>
           </router-link>
         </template>
       </nav>
@@ -214,16 +216,21 @@ onMounted(() => {
 }
 
 @media (max-width: 640px) {
+  .app-header__inner {
+    padding: 0 var(--space-3);
+  }
+
   .app-header__nav {
     gap: var(--space-2);
   }
 
   .btn--sm {
-    padding: var(--space-2) var(--space-3);
-    font-size: var(--font-size-xs);
+    padding: var(--space-2) var(--space-2);
   }
 
-  .btn--outline svg {
+  .btn-text,
+  .app-header__user-email,
+  .app-header__logo-text {
     display: none;
   }
 }

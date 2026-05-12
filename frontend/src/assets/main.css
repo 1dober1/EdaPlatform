@@ -112,6 +112,7 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   scroll-behavior: smooth;
+  overflow-x: hidden;
 }
 
 body {
@@ -122,6 +123,7 @@ body {
   line-height: 1.6;
   min-height: 100vh;
   transition: background var(--transition-base), color var(--transition-base);
+  overflow-x: hidden;
 }
 
 [data-theme='dark'] body {
