@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useWorkspaceStore } from '@/stores/workspace'
 import { useAuthStore } from '@/stores/auth'
-import { parseFile } from '@/utils/dataParser'
+import { parseFile, getParquetMetadataParams } from '@/utils/dataParser'
 
 const router = useRouter()
 const store = useWorkspaceStore()
@@ -36,6 +36,12 @@ async function handleFile(file) {
       const formData = new FormData()
       formData.append('file', file)
       formData.append('name', file.name.replace(/\.[^.]+$/, ''))
+
+      if (file.name.toLowerCase().endsWith('.parquet')) {
+        const meta = await getParquetMetadataParams(file)
+        formData.append('rows', meta.rows)
+        formData.append('columns', meta.columns)
+      }
 
       const req = await fetch(`${authStore.API_BASE}/api/datasets/`, {
         method: 'POST',

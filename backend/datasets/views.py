@@ -72,7 +72,19 @@ class DatasetListCreateView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer):
         uploaded_file = serializer.validated_data['file']
-        rows, cols = self._count_rows_cols(uploaded_file)
+        
+        req_rows = self.request.data.get('rows')
+        req_cols = self.request.data.get('columns')
+        
+        if req_rows is not None and req_cols is not None:
+            try:
+                rows = int(req_rows)
+                cols = int(req_cols)
+            except ValueError:
+                rows, cols = self._count_rows_cols(uploaded_file)
+        else:
+            rows, cols = self._count_rows_cols(uploaded_file)
+            
         serializer.save(user=self.request.user, rows=rows, columns=cols)
 
     @staticmethod
@@ -151,7 +163,18 @@ class ClaimDatasetView(APIView):
                 {'detail': 'Формат не поддерживается.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        rows, cols = DatasetListCreateView._count_rows_cols(file)
+        req_rows = request.data.get('rows')
+        req_cols = request.data.get('columns')
+        
+        if req_rows is not None and req_cols is not None:
+            try:
+                rows = int(req_rows)
+                cols = int(req_cols)
+            except ValueError:
+                rows, cols = DatasetListCreateView._count_rows_cols(file)
+        else:
+            rows, cols = DatasetListCreateView._count_rows_cols(file)
+
         dataset = Dataset.objects.create(
             user=request.user,
             name=name,

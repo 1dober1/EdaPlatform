@@ -30,6 +30,23 @@ export async function parseFile(file) {
   return result
 }
 
+export async function getParquetMetadataParams(file) {
+  try {
+    const arrayBuffer = await file.arrayBuffer()
+    const { parquetMetadata } = await import('hyparquet')
+    const metadata = parquetMetadata(arrayBuffer)
+    const columns = metadata.schema
+      .filter(s => s.name !== 'schema')
+      .map(s => s.name)
+    return {
+      rows: Number(metadata.num_rows),
+      columns: columns.length
+    }
+  } catch (e) {
+    return { rows: 0, columns: 0 }
+  }
+}
+
 export async function parseText(text, ext) {
   const parser = PARSERS[ext]
   if (!parser) throw new Error(`Формат .${ext} не поддерживается.`)
