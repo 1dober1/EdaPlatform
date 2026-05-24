@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useWorkspaceStore } from '@/stores/workspace'
 import { useAuthStore } from '@/stores/auth'
 import { parseFile, parseText } from '@/utils/dataParser'
@@ -12,6 +12,7 @@ import Papa from 'papaparse'
 import { parquetExport } from '@/utils/parquetExport'
 
 const route = useRoute()
+const router = useRouter()
 const store = useWorkspaceStore()
 const authStore = useAuthStore()
 
@@ -47,10 +48,38 @@ onMounted(async () => {
   checkPendingAction()
 })
 
-function checkPendingAction() {
+async function checkPendingAction() {
   const pending = localStorage.getItem('eda_pending_action')
   if (pending === 'export' && authStore.isAuthenticated) {
     localStorage.removeItem('eda_pending_action')
+
+    if (store.datasetSource !== 'saved') {
+      try {
+        const csv = Papa.unparse(store.rows)
+        const blob = new Blob([csv], { type: 'text/csv' })
+        const file = new File([blob], `${store.datasetName || 'dataset'}.csv`, { type: 'text/csv' })
+
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('name', store.datasetName || 'dataset')
+
+        const req = await fetch(`${authStore.API_BASE}/api/datasets/`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${authStore.token}` },
+          body: formData
+        })
+        if (req.ok) {
+          const dataset = await req.json()
+          store.datasetSource = 'saved'
+          store.datasetId = dataset.id
+          store.saveToStorage()
+          router.replace(`/workspace/saved/${dataset.id}`)
+        }
+      } catch (e) {
+        console.error('Failed to save dataset to backend', e)
+      }
+    }
+
     setTimeout(() => {
       alert('Вы успешно авторизовались! Теперь вы можете экспортировать датасет.')
     }, 500)

@@ -220,13 +220,6 @@ function handleRemoveOutliers(col, method) {
 }
 
 function handleGenerateReport() {
-  if (!authStore.isAuthenticated) {
-    localStorage.setItem('eda_pending_action', 'export')
-    localStorage.setItem('eda_return_url', window.location.pathname)
-    alert('Для генерации отчёта необходимо зарегистрироваться в системе')
-    router.push('/register')
-    return
-  }
   generateEdaReport(
     'dataset',
     props.columns,

@@ -6,3 +6,8 @@ backend/media/
 node_modules/
 dist/
 .env
+.DS_Store
+
+# Selenium E2E — screenshots and cache
+tests/screenshots/
+tests/__pycache__/

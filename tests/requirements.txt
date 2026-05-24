@@ -1,0 +1,3 @@
+# EDA Platform — зависимости для E2E-тестов
+selenium>=4.18
+webdriver-manager>=4.0
